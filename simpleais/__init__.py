@@ -93,6 +93,12 @@ _nmea_lookup = _make_nmea_lookup_table()
 
 # noinspection PyCallingNonCallable
 class NmeaPayload:
+    '''
+    Represents the decoded heart of an AIS message. The BitVector class used
+    is not very fast and a bit rough, but is adequate for now. If performance
+    becomes an issue, it might be worth replacing. See http://stackoverflow.com/questions/20845686/python-bit-array-performant
+    for options.
+    '''
     def __init__(self, raw_data, fill_bits=0):
         if isinstance(raw_data, BitVector):
             self.bits = raw_data

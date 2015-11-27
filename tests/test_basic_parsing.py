@@ -19,7 +19,6 @@ class TestBasicParsing(TestCase):
         self.assertEqual(SentenceType('VDM'), sentence.sentence_type)
         self.assertEqual('A', sentence.radio_channel)
         self.assertEqual(1, sentence.message_type())
-        # TODO: above is text, but don't I want meaning?
 
     def test_single_fragment(self):
         body = '85NoHR1KfI99t:BHBI3sWpAoS7VHRblW8McQtR3lsFR'
