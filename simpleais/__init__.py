@@ -1,5 +1,4 @@
 import collections
-from functools import reduce
 
 from BitVector import BitVector
 
@@ -79,24 +78,31 @@ class SentenceType(NMEAThing):
 
 def _make_nmea_lookup_table():
     lookup = {}
-    for ascii in range(48, 88):
+    for val in range(48, 88):
         # noinspection PyCallingNonCallable
-        lookup[chr(ascii)] = BitVector(size=6, intVal=ascii - 48)
-    for ascii in range(96, 120):
+        lookup[chr(val)] = BitVector(size=6, intVal=val - 48)
+    for val in range(96, 120):
         # noinspection PyCallingNonCallable
-        lookup[chr(ascii)] = BitVector(size=6, intVal=ascii - 56)
+        lookup[chr(val)] = BitVector(size=6, intVal=val - 56)
     return lookup
 
 
 _nmea_lookup = _make_nmea_lookup_table()
 
 
+# noinspection PyCallingNonCallable
 class NmeaPayload:
     def __init__(self, ascii_representation, fill_bits):
-        child_vectors = [_nmea_lookup[c] for c in ascii_representation]
-        if fill_bits:
-            child_vectors[-1] = child_vectors[-1][0:(6 - fill_bits)]
-        self.bits = reduce(lambda x, y: x + y, child_vectors)
+        bits = BitVector(size=len(ascii_representation) * 6 - fill_bits)
+
+        for c in range(0, len(ascii_representation) - 1):
+            bits[c * 6:(c + 1) * 6] = _nmea_lookup[ascii_representation[c]]
+
+        bits_at_end = 6 - fill_bits
+        start_at = (len(ascii_representation) - 1) * 6
+        bits[start_at:len(bits)] = _nmea_lookup[ascii_representation[-1]][0:bits_at_end]
+
+        self.bits = bits
 
     def __len__(self):
         return len(self.bits)
