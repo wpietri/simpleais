@@ -8,9 +8,9 @@ def parse_many(messages):
 
     result = []
     fragment_pool = FragmentPool()
-    while len(first_pass)>0:
+    while len(first_pass) > 0:
         m = first_pass.popleft()
-        if not m.partial():
+        if isinstance(m, Sentence):
             result.append(m)
         else:
             fragment_pool.add(m)
@@ -18,7 +18,6 @@ def parse_many(messages):
                 result.append(fragment_pool.pop_full_sentence())
 
     return result
-
 
 
 def parse_one(message):
@@ -31,12 +30,11 @@ def parse_one(message):
     result['talker'] = fields[0][1:3]
     result['sentence_type'] = fields[0][3:]
     fragment_count = int(fields[1])
-    print(fragment_count)
     if fragment_count == 1:
         return Sentence(Talker(fields[0][1:3]), SentenceType(fields[0][3:]))
     else:
-        return SentenceFragment(Talker(fields[0][1:3]), SentenceType(fields[0][3:]), int(fields[1]), int(fields[2]), int(fields[3]))
-
+        return SentenceFragment(Talker(fields[0][1:3]), SentenceType(fields[0][3:]), int(fields[1]), int(fields[2]),
+                                int(fields[3]))
 
 
 def parse(message):
@@ -67,11 +65,13 @@ class NMEAThing:
 class Talker(NMEAThing):
     pass
 
+
 class SentenceType(NMEAThing):
     pass
 
+
 class SentenceFragment:
-    def __init__(self,talker, sentence_type, total_fragments, fragment_number, message_id):
+    def __init__(self, talker, sentence_type, total_fragments, fragment_number, message_id):
         self.talker = talker
         self.sentence_type = sentence_type
         self.total_fragments = total_fragments
@@ -80,18 +80,17 @@ class SentenceFragment:
 
     def initial(self):
         return self.fragment_number == 1
+
     def key(self):
-        return (self.talker, self.sentence_type, self.total_fragments, self.message_id)
-    def partial(self):
-        return True
+        key = (self.talker, self.sentence_type, self.total_fragments, self.message_id)
+        return key
+
 
 class Sentence:
-    def __init__(self,talker, sentence_type):
+    def __init__(self, talker, sentence_type):
         self.talker = talker
         self.sentence_type = sentence_type
 
-    def partial(self):
-        return False
 
 # TODO: this needs to understand message guts. Perhaps it should be a static method on Sentence.
 def merge_matching_fragments(matching_fragments):
@@ -110,22 +109,21 @@ class FragmentPool:
         self.full_sentence = None
 
     def has_full_sentence(self):
-        if self.full_sentence == None:
+        if self.full_sentence is None:
             self.seek_full_sentence()
-        return not self.full_sentence == None
+        return self.full_sentence is not None
 
     def seek_full_sentence(self):
         initials = [f for f in self.fragments if f.initial()]
         for initial in initials:
             key = initial.key()
-            matches = [f for f in self.fragments if f.key()==key]
+            matches = [f for f in self.fragments if f.key() == key]
             if len(matches) >= initial.total_fragments:
                 self.full_sentence = merge_matching_fragments(matches)
                 for match in matches:
                     self.fragments.remove(match)
 
             return
-
 
     def pop_full_sentence(self):
         if not self.full_sentence:
@@ -136,4 +134,3 @@ class FragmentPool:
 
     def add(self, fragment):
         self.fragments.append(fragment)
-
