@@ -26,7 +26,7 @@ class TestBasicParsing(TestCase):
         padding = 0
         fragment = simpleais.parse('!AIVDM,3,1,3,A,%s,%s*5A' % (body, padding))
         self.assertIsInstance(fragment, SentenceFragment)
-        self.assertEqual(len(body)*6 - padding, len(fragment.bits()))
+        self.assertEqual(len(body) * 6 - padding, len(fragment.bits()))
 
     def test_basic_lists(self):
         sentences = simpleais.parse([
@@ -36,12 +36,14 @@ class TestBasicParsing(TestCase):
         self.assertEqual(2, len(sentences))
 
     def test_fragment_assembly(self):
-        sentence = simpleais.parse([
-            '!AIVDM,3,1,3,A,85NoHR1KfI99t:BHBI3sWpAoS7VHRblW8McQtR3lsFR,0*5A',
-            '!AIVDM,3,2,3,A,ApU6wWmdIeJG7p1uUhk8Tp@SVV6D=sTKh1O4fBvUcaN,0*5E',
-            '!AIVDM,3,3,3,A,j;lM8vfK0,2*34'
-        ])
-        self.assertEqual(1, len(sentence))
+        raw = ['!AIVDM,3,1,3,A,85NoHR1KfI99t:BHBI3sWpAoS7VHRblW8McQtR3lsFR,0*5A',
+               '!AIVDM,3,2,3,A,ApU6wWmdIeJG7p1uUhk8Tp@SVV6D=sTKh1O4fBvUcaN,0*5E',
+               '!AIVDM,3,3,3,A,j;lM8vfK0,2*34']
+        sentences = simpleais.parse(raw)
+        self.assertEqual(1, len(sentences))
+        message_bytes = sum([len(m) - len('!AIVDM,3,1,3,A,') - len(',2*34') for m in raw])
+        message_bits = message_bytes * 6 - 2  # where 2 is padding on last fragment
+        self.assertEquals(message_bits, len(sentences[0].message_bits()))
 
 
 class TestFragmentPool(TestCase):
@@ -79,17 +81,22 @@ class TestFragmentPool(TestCase):
 
 
 class TestNmeaPayload(TestCase):
-
     def test_basic_construction(self):
         body, fill_bits = '1', 0
-        p = NmeaPayload(body,fill_bits)
+        p = NmeaPayload(body, fill_bits)
+        self.assertEqual(6, len(p))
+        self.assertEqual('000001', str(p.bits))
+
+    def test_construction_from_bits(self):
+        p = NmeaPayload(BitVector(bitstring='000001'))
         self.assertEqual(6, len(p))
         self.assertEqual('000001', str(p.bits))
 
     def test_padding(self):
-        for fill_bits in range(0,6):
+        for fill_bits in range(0, 6):
             payload = NmeaPayload('w', fill_bits)
-            self.assertEqual('111111'[0:(6-fill_bits)], str(payload.bits), msg='failure for {} fill bits'.format(fill_bits))
+            self.assertEqual('111111'[0:(6 - fill_bits)], str(payload.bits),
+                             msg='failure for {} fill bits'.format(fill_bits))
 
     def test_full_message(self):
         body = '15NaEPPP01oR`R6CC?<j@gvr0<1C'

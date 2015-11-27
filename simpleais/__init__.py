@@ -1,4 +1,5 @@
 import collections
+from functools import reduce
 
 from BitVector import BitVector
 
@@ -92,17 +93,20 @@ _nmea_lookup = _make_nmea_lookup_table()
 
 # noinspection PyCallingNonCallable
 class NmeaPayload:
-    def __init__(self, ascii_representation, fill_bits):
-        bits = BitVector(size=len(ascii_representation) * 6 - fill_bits)
+    def __init__(self, raw_data, fill_bits=0):
+        if isinstance(raw_data, BitVector):
+            self.bits = raw_data
+        else:
+            self.bits = self._bits_for(raw_data, fill_bits)
 
+    def _bits_for(self, ascii_representation, fill_bits):
+        bits = BitVector(size=len(ascii_representation) * 6 - fill_bits)
         for c in range(0, len(ascii_representation) - 1):
             bits[c * 6:(c + 1) * 6] = _nmea_lookup[ascii_representation[c]]
-
         bits_at_end = 6 - fill_bits
         start_at = (len(ascii_representation) - 1) * 6
         bits[start_at:len(bits)] = _nmea_lookup[ascii_representation[-1]][0:bits_at_end]
-
-        self.bits = bits
+        return bits
 
     def __len__(self):
         return len(self.bits)
@@ -139,11 +143,14 @@ class Sentence:
     def message_type(self):
         return int(self.payload.bits[0:6])
 
+    def message_bits(self):
+        return self.payload.bits
 
-# TODO: this needs to understand message guts. Perhaps it should be a static method on Sentence.
-def merge_matching_fragments(matching_fragments):
-    first = matching_fragments[0]
-    return Sentence(first.talker, first.sentence_type, first.radio_channel, first.payload)
+    @classmethod
+    def from_fragments(cls, matching_fragments):
+        first = matching_fragments[0]
+        message_bits = reduce(lambda a, b: a + b, [f.bits() for f in matching_fragments])
+        return Sentence(first.talker, first.sentence_type, first.radio_channel, NmeaPayload(message_bits))
 
 
 class FragmentPool:
@@ -167,7 +174,7 @@ class FragmentPool:
             key = initial.key()
             matches = [f for f in self.fragments if f.key() == key]
             if len(matches) >= initial.total_fragments:
-                self.full_sentence = merge_matching_fragments(matches)
+                self.full_sentence = Sentence.from_fragments(matches)
                 for match in matches:
                     self.fragments.remove(match)
 
