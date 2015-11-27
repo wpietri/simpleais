@@ -14,9 +14,19 @@ class TestBasicParsing(TestCase):
 
     def test_basic_sentence(self):
         sentence = simpleais.parse('!ABVDM,1,1,,A,15NaEPPP01oR`R6CC?<j@gvr0<1C,0*1F')
+        self.assertIsInstance(sentence, Sentence)
         self.assertEqual(Talker('AB'), sentence.talker)
         self.assertEqual(SentenceType('VDM'), sentence.sentence_type)
+        self.assertEqual('A', sentence.radio_channel)
+        self.assertEqual(1, sentence.message_type())
         # TODO: above is text, but don't I want meaning?
+
+    def test_single_fragment(self):
+        body = '85NoHR1KfI99t:BHBI3sWpAoS7VHRblW8McQtR3lsFR'
+        padding = 0
+        fragment = simpleais.parse('!AIVDM,3,1,3,A,%s,%s*5A' % (body, padding))
+        self.assertIsInstance(fragment, SentenceFragment)
+        self.assertEqual(len(body)*6 - padding, len(fragment.bits()))
 
     def test_basic_lists(self):
         sentences = simpleais.parse([
@@ -66,3 +76,22 @@ class TestFragmentPool(TestCase):
         f.add(self.cooked_fragments[2])
         self.assertTrue(f.has_full_sentence())
         sentence = f.pop_full_sentence()
+
+
+class TestNmeaPayload(TestCase):
+
+    def test_basic_construction(self):
+        body, fill_bits = '1', 0
+        p = NmeaPayload(body,fill_bits)
+        self.assertEqual(6, len(p))
+        self.assertEqual('000001', str(p.bits))
+
+    def test_padding(self):
+        for fill_bits in range(0,6):
+            payload = NmeaPayload('w', fill_bits)
+            self.assertEqual('111111'[0:(6-fill_bits)], str(payload.bits), msg='failure for {} fill bits'.format(fill_bits))
+
+    def test_full_message(self):
+        body = '15NaEPPP01oR`R6CC?<j@gvr0<1C'
+        p = NmeaPayload('%s' % body, 0)
+        self.assertEqual(6 * len(body), len(p))

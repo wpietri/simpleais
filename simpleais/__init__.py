@@ -1,4 +1,6 @@
 import collections
+from BitVector import BitVector
+from functools import reduce
 
 
 def parse_many(messages):
@@ -24,17 +26,21 @@ def parse_one(message):
     if message == '':
         return None
 
-    result = {}
-    fields = message.split(',')
-
-    result['talker'] = fields[0][1:3]
-    result['sentence_type'] = fields[0][3:]
+    content, checksum = message[1:].split('*')
+    fields = content.split(',')
+    talker = Talker(fields[0][0:2])
+    sentence_type = SentenceType(fields[0][2:])
     fragment_count = int(fields[1])
+    radio_channel = fields[4]
+    payload = NmeaPayload(fields[5], int(fields[6]))
+
     if fragment_count == 1:
-        return Sentence(Talker(fields[0][1:3]), SentenceType(fields[0][3:]))
+        return Sentence(talker, sentence_type, radio_channel, payload)
     else:
-        return SentenceFragment(Talker(fields[0][1:3]), SentenceType(fields[0][3:]), int(fields[1]), int(fields[2]),
-                                int(fields[3]))
+        fragment_number = int(fields[2])
+        message_id = int(fields[3])
+        return SentenceFragment(talker, sentence_type, fragment_count, fragment_number,
+                                message_id, radio_channel, payload)
 
 
 def parse(message):
@@ -70,13 +76,38 @@ class SentenceType(NMEAThing):
     pass
 
 
+# noinspection PyCallingNonCallable
+def _make_nmea_lookup_table():
+    lookup = {}
+    for ascii in range(48, 88):
+        lookup[chr(ascii)] = BitVector(size=6, intVal=ascii - 48)
+    for ascii in range(96, 120):
+        lookup[chr(ascii)] = BitVector(size=6, intVal=ascii - 56)
+
+    return lookup
+
+_nmea_lookup = _make_nmea_lookup_table()
+
+
+class NmeaPayload:
+    def __init__(self, ascii_representation, fill_bits):
+        child_vectors = [_nmea_lookup[c] for c in ascii_representation]
+        if fill_bits:
+            child_vectors[-1] = child_vectors[-1][0:(6-fill_bits)]
+        self.bits = reduce(lambda x, y: x+y, child_vectors)
+
+    def __len__(self):
+        return len(self.bits)
+
 class SentenceFragment:
-    def __init__(self, talker, sentence_type, total_fragments, fragment_number, message_id):
+    def __init__(self, talker, sentence_type, total_fragments, fragment_number, message_id, radio_channel, payload):
         self.talker = talker
         self.sentence_type = sentence_type
         self.total_fragments = total_fragments
         self.fragment_number = fragment_number
         self.message_id = message_id
+        self.radio_channel = radio_channel
+        self.payload = payload
 
     def initial(self):
         return self.fragment_number == 1
@@ -85,17 +116,25 @@ class SentenceFragment:
         key = (self.talker, self.sentence_type, self.total_fragments, self.message_id)
         return key
 
+    def bits(self):
+        return self.payload.bits
+
 
 class Sentence:
-    def __init__(self, talker, sentence_type):
+    def __init__(self, talker, sentence_type, radio_channel, payload):
         self.talker = talker
         self.sentence_type = sentence_type
+        self.radio_channel = radio_channel
+        self.payload = payload
+
+    def message_type(self):
+        return int(self.payload.bits[0:6])
 
 
 # TODO: this needs to understand message guts. Perhaps it should be a static method on Sentence.
 def merge_matching_fragments(matching_fragments):
     first = matching_fragments[0]
-    return Sentence(first.talker, first.sentence_type)
+    return Sentence(first.talker, first.sentence_type, first.radio_channel, first.payload)
 
 
 class FragmentPool:
@@ -110,10 +149,10 @@ class FragmentPool:
 
     def has_full_sentence(self):
         if self.full_sentence is None:
-            self.seek_full_sentence()
+            self._seek_full_sentence()
         return self.full_sentence is not None
 
-    def seek_full_sentence(self):
+    def _seek_full_sentence(self):
         initials = [f for f in self.fragments if f.initial()]
         for initial in initials:
             key = initial.key()

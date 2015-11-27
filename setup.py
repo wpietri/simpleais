@@ -6,4 +6,5 @@ setup(name='simpleais',
       url='https://github.com/wpietri/simpleais',
       author='William Pietri',
       license='Apache 2.0',
-      packages=['simpleais'])
+      packages=['simpleais'],
+      install_requires=['BitVector'])
