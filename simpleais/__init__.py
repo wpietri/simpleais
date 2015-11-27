@@ -1,6 +1,7 @@
 import collections
-from BitVector import BitVector
 from functools import reduce
+
+from BitVector import BitVector
 
 
 def parse_many(messages):
@@ -76,15 +77,16 @@ class SentenceType(NMEAThing):
     pass
 
 
-# noinspection PyCallingNonCallable
 def _make_nmea_lookup_table():
     lookup = {}
     for ascii in range(48, 88):
+        # noinspection PyCallingNonCallable
         lookup[chr(ascii)] = BitVector(size=6, intVal=ascii - 48)
     for ascii in range(96, 120):
+        # noinspection PyCallingNonCallable
         lookup[chr(ascii)] = BitVector(size=6, intVal=ascii - 56)
-
     return lookup
+
 
 _nmea_lookup = _make_nmea_lookup_table()
 
@@ -93,11 +95,12 @@ class NmeaPayload:
     def __init__(self, ascii_representation, fill_bits):
         child_vectors = [_nmea_lookup[c] for c in ascii_representation]
         if fill_bits:
-            child_vectors[-1] = child_vectors[-1][0:(6-fill_bits)]
-        self.bits = reduce(lambda x, y: x+y, child_vectors)
+            child_vectors[-1] = child_vectors[-1][0:(6 - fill_bits)]
+        self.bits = reduce(lambda x, y: x + y, child_vectors)
 
     def __len__(self):
         return len(self.bits)
+
 
 class SentenceFragment:
     def __init__(self, talker, sentence_type, total_fragments, fragment_number, message_id, radio_channel, payload):
