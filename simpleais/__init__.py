@@ -158,14 +158,32 @@ class Sentence:
         return Sentence(first.talker, first.sentence_type, first.radio_channel, NmeaPayload(message_bits))
 
     def __getitem__(self, item):
-        if item == 'mmsi':
-            return "%09i" % (self.payload.bits[8:38].uint)
-        if item == 'lat':
-            bits = self.payload.bits[89:116]
-            return float("%.4f" % (bits.int / 60.0 / 10000.0))
-        if item == 'lon':
-            bits = self.payload.bits[61:89]
-            return float("%.4f" % (bits.int / 60.0 / 10000.0))
+        bits = self.payload.bits
+        if self.type_id() in [1,2,3]:
+            if item == 'mmsi':
+                return self.mmsi(bits[8:38])
+            if item == 'lat':
+                return self.latlong(bits[89:116])
+            if item == 'lon':
+                return self.latlong(bits[61:89])
+        if self.type_id() == 5:
+            if item == 'mmsi':
+                return self.mmsi(bits[8:38])
+            if item == 'shipname':
+                return self.text(bits[112:232])
+            if item == 'destination':
+                return self.text(bits[302:422])
+
+    def mmsi(self, bits):
+        return "%09i" % (bits.uint)
+
+    def latlong(self, bits):
+        return float("%.4f" % (bits.int / 60.0 / 10000.0))
+
+    def text(self, bits):
+        raw_ints = [nibble.uint for nibble in bits.cut(6)]
+        mapped_ints = [i if i>31 else i+64 for i in raw_ints]
+        return ''.join([chr(i) for i in mapped_ints]).strip()
 
 
 class FragmentPool:
