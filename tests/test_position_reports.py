@@ -40,4 +40,4 @@ class TestPositionReports(TestCase):
         self.assertEqual(1, m.type_id())
         self.assertEqual('367678850', m['mmsi'])
         self.assertAlmostEquals(33.7302, m['lat'])
-        # self.assertAlmostEquals(-118.2633, m['lon'])
+        self.assertAlmostEquals(-118.2634, m['lon'])

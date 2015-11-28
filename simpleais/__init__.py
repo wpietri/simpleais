@@ -146,7 +146,7 @@ class Sentence:
         self.payload = payload
 
     def type_id(self):
-        return self.payload.bits[0:6].int
+        return self.payload.bits[0:6].uint
 
     def message_bits(self):
         return self.payload.bits
@@ -159,13 +159,13 @@ class Sentence:
 
     def __getitem__(self, item):
         if item == 'mmsi':
-            return "%9i" % (self.payload.bits[8:38].int)
+            return "%09i" % (self.payload.bits[8:38].uint)
         if item == 'lat':
             bits = self.payload.bits[89:116]
             return float("%.4f" % (bits.int / 60.0 / 10000.0))
         if item == 'lon':
             bits = self.payload.bits[61:89]
-            return float("%.4f" % (int(bits) / 60.0 / 10000.0))
+            return float("%.4f" % (bits.int / 60.0 / 10000.0))
 
 
 class FragmentPool:
