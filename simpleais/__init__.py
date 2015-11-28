@@ -99,6 +99,7 @@ class NmeaPayload:
     becomes an issue, it might be worth replacing. See http://stackoverflow.com/questions/20845686/python-bit-array-performant
     for options.
     '''
+
     def __init__(self, raw_data, fill_bits=0):
         if isinstance(raw_data, BitVector):
             self.bits = raw_data
@@ -146,7 +147,7 @@ class Sentence:
         self.radio_channel = radio_channel
         self.payload = payload
 
-    def message_type(self):
+    def type_id(self):
         return int(self.payload.bits[0:6])
 
     def message_bits(self):
@@ -157,6 +158,17 @@ class Sentence:
         first = matching_fragments[0]
         message_bits = reduce(lambda a, b: a + b, [f.bits() for f in matching_fragments])
         return Sentence(first.talker, first.sentence_type, first.radio_channel, NmeaPayload(message_bits))
+
+    def __getitem__(self, item):
+        if item == 'mmsi':
+            return "%9i" % (int(self.payload.bits[8:38]))
+        if item == 'lat':
+            bits = self.payload.bits[89:116]
+            return float("%.4f" % (int(bits) / 60.0 / 10000.0))
+        if item == 'lon':
+            bits = self.payload.bits[61:89]
+            print(bits)
+            return float("%.4f" % (int(bits) / 60.0 / 10000.0))
 
 
 class FragmentPool:

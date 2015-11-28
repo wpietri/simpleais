@@ -18,7 +18,7 @@ class TestBasicParsing(TestCase):
         self.assertEqual(Talker('AB'), sentence.talker)
         self.assertEqual(SentenceType('VDM'), sentence.sentence_type)
         self.assertEqual('A', sentence.radio_channel)
-        self.assertEqual(1, sentence.message_type())
+        self.assertEqual(1, sentence.type_id())
 
     def test_single_fragment(self):
         body = '85NoHR1KfI99t:BHBI3sWpAoS7VHRblW8McQtR3lsFR'
