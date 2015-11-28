@@ -1,7 +1,7 @@
 import collections
 from functools import reduce
 
-from BitVector import BitVector
+from bitstring import BitArray, Bits
 
 
 def parse_many(messages):
@@ -80,11 +80,9 @@ class SentenceType(NMEAThing):
 def _make_nmea_lookup_table():
     lookup = {}
     for val in range(48, 88):
-        # noinspection PyCallingNonCallable
-        lookup[chr(val)] = BitVector(size=6, intVal=val - 48)
+        lookup[chr(val)] = Bits(uint=val - 48, length=6)
     for val in range(96, 120):
-        # noinspection PyCallingNonCallable
-        lookup[chr(val)] = BitVector(size=6, intVal=val - 56)
+        lookup[chr(val)] = Bits(uint=val - 56, length=6)
     return lookup
 
 
@@ -101,18 +99,18 @@ class NmeaPayload:
     '''
 
     def __init__(self, raw_data, fill_bits=0):
-        if isinstance(raw_data, BitVector):
+        if isinstance(raw_data, Bits):
             self.bits = raw_data
         else:
             self.bits = self._bits_for(raw_data, fill_bits)
 
     def _bits_for(self, ascii_representation, fill_bits):
-        bits = BitVector(size=len(ascii_representation) * 6 - fill_bits)
+        bits = BitArray(None)
         for c in range(0, len(ascii_representation) - 1):
-            bits[c * 6:(c + 1) * 6] = _nmea_lookup[ascii_representation[c]]
+            bits.append(_nmea_lookup[ascii_representation[c]])
         bits_at_end = 6 - fill_bits
-        start_at = (len(ascii_representation) - 1) * 6
-        bits[start_at:len(bits)] = _nmea_lookup[ascii_representation[-1]][0:bits_at_end]
+        selected_bits = _nmea_lookup[ascii_representation[-1]][0:bits_at_end]
+        bits.append(selected_bits)
         return bits
 
     def __len__(self):
@@ -148,7 +146,7 @@ class Sentence:
         self.payload = payload
 
     def type_id(self):
-        return int(self.payload.bits[0:6])
+        return self.payload.bits[0:6].int
 
     def message_bits(self):
         return self.payload.bits
@@ -161,13 +159,12 @@ class Sentence:
 
     def __getitem__(self, item):
         if item == 'mmsi':
-            return "%9i" % (int(self.payload.bits[8:38]))
+            return "%9i" % (self.payload.bits[8:38].int)
         if item == 'lat':
             bits = self.payload.bits[89:116]
-            return float("%.4f" % (int(bits) / 60.0 / 10000.0))
+            return float("%.4f" % (bits.int / 60.0 / 10000.0))
         if item == 'lon':
             bits = self.payload.bits[61:89]
-            print(bits)
             return float("%.4f" % (int(bits) / 60.0 / 10000.0))
 
 
