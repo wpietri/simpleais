@@ -241,8 +241,6 @@ class FragmentPool:
                 for match in matches:
                     self.fragments.remove(match)
 
-            return
-
     def pop_full_sentence(self):
         if not self.full_sentence:
             raise ValueError

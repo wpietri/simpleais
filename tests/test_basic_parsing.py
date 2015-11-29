@@ -70,11 +70,11 @@ class TestStreamParser(TestCase):
         p = StreamParser()
         i = iter(fragmented_message_type_8)
         self.assertFalse(p.hasSentence())
-        p.add(i.__next__())
+        p.add(next(i))
         self.assertFalse(p.hasSentence())
-        p.add(i.__next__())
+        p.add(next(i))
         self.assertFalse(p.hasSentence())
-        p.add(i.__next__())
+        p.add(next(i))
         self.assertTrue(p.hasSentence())
         self.assertEqual(8, p.nextSentence().type_id())
         self.assertFalse(p.hasSentence())
@@ -85,7 +85,10 @@ class TestFragmentPool(TestCase):
         super(TestFragmentPool, self).__init__(method_name)
         self.raw_fragments = fragmented_message_type_8
 
-        self.cooked_fragments = [parse_one(m) for m in self.raw_fragments]
+        self.cooked_fragments = self.parse_fragments_separately(self.raw_fragments)
+
+    def parse_fragments_separately(self, fragments):
+        return [parse_one(m) for m in fragments]
 
     def test_empty(self):
         f = FragmentPool()
@@ -109,7 +112,29 @@ class TestFragmentPool(TestCase):
         self.assertTrue(f.has_full_sentence())
         sentence = f.pop_full_sentence()
 
-        # TODO: limit size
+    def test_leftovers(self):
+        fragments = self.parse_fragments_separately(
+            ['!ABVDM,2,1,2,A,55NJ<1000001L@K;KS0=9U=@4j0TV2222222220U1p?456t007ThC`12AAkp,0*5A',
+             '!AIVDM,2,1,8,A,55NJ<1000001L@K;KS0=9U=@4j0TV2222222220U1p?456t007ThC`12,0*40',
+             '!AIVDM,2,2,8,A,AAkp88888888880,2*37',
+             '!AIVDM,2,1,4,B,54hB6<42CMBq`LAOB20EIHUH622222222222220U30J,0*1B',
+             '!AIVDM,2,2,4,B,5540Ht64kkAEj1DQH4mCSVH88880,2*4C'])
+        f = FragmentPool()
+        f.add(fragments[0])
+        self.assertFalse(f.has_full_sentence())
+        f.add(fragments[1])
+        self.assertFalse(f.has_full_sentence())
+        f.add(fragments[2])
+        self.assertTrue(f.has_full_sentence())
+        sentence = f.pop_full_sentence()
+        self.assertFalse(f.has_full_sentence())
+        f.add(fragments[3])
+        self.assertFalse(f.has_full_sentence())
+        f.add(fragments[4])
+        self.assertTrue(f.has_full_sentence())
+        print(len(sentence.message_bits().bin))
+        print(sentence.message_bits().bin)
+# TODO: limit size
 
 
 class TestNmeaPayload(TestCase):
