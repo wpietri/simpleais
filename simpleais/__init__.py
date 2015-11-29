@@ -91,12 +91,13 @@ _nmea_lookup = _make_nmea_lookup_table()
 
 # noinspection PyCallingNonCallable
 class NmeaPayload:
-    '''
+    """
     Represents the decoded heart of an AIS message. The BitVector class used
     is not very fast and a bit rough, but is adequate for now. If performance
-    becomes an issue, it might be worth replacing. See http://stackoverflow.com/questions/20845686/python-bit-array-performant
+    becomes an issue, it might be worth replacing. See
+    http://stackoverflow.com/questions/20845686/python-bit-array-performant
     for options.
-    '''
+    """
 
     def __init__(self, raw_data, fill_bits=0):
         if isinstance(raw_data, Bits):
@@ -104,7 +105,8 @@ class NmeaPayload:
         else:
             self.bits = self._bits_for(raw_data, fill_bits)
 
-    def _bits_for(self, ascii_representation, fill_bits):
+    @staticmethod
+    def _bits_for(ascii_representation, fill_bits):
         bits = BitArray(None)
         for c in range(0, len(ascii_representation) - 1):
             bits.append(_nmea_lookup[ascii_representation[c]])
@@ -159,7 +161,7 @@ class Sentence:
 
     def __getitem__(self, item):
         bits = self.payload.bits
-        if self.type_id() in [1,2,3]:
+        if self.type_id() in [1, 2, 3]:
             if item == 'mmsi':
                 return self.mmsi(bits[8:38])
             if item == 'lat':
@@ -175,14 +177,14 @@ class Sentence:
                 return self.text(bits[302:422])
 
     def mmsi(self, bits):
-        return "%09i" % (bits.uint)
+        return "%09i" % bits.uint
 
     def latlong(self, bits):
         return float("%.4f" % (bits.int / 60.0 / 10000.0))
 
     def text(self, bits):
         raw_ints = [nibble.uint for nibble in bits.cut(6)]
-        mapped_ints = [i if i>31 else i+64 for i in raw_ints]
+        mapped_ints = [i if i > 31 else i + 64 for i in raw_ints]
         return ''.join([chr(i) for i in mapped_ints]).strip()
 
 
