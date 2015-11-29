@@ -4,6 +4,34 @@ from functools import reduce
 from bitstring import BitArray, Bits
 
 
+class StreamParser:
+    """
+    Used to parse live streams of AIS messages.
+    """
+
+    def __init__(self):
+        self.fragment_pool = FragmentPool()
+        self.sentence_buffer=collections.deque()
+
+
+    def add(self, message_text):
+        thing = parse_one(message_text)
+        if isinstance(thing, Sentence):
+            self.sentence_buffer.append(thing)
+        elif isinstance(thing, SentenceFragment):
+            self.fragment_pool.add(thing)
+            if self.fragment_pool.has_full_sentence():
+                sentence = self.fragment_pool.pop_full_sentence()
+                self.sentence_buffer.append(sentence)
+
+
+    def nextSentence(self):
+        return self.sentence_buffer.popleft()
+
+    def hasSentence(self):
+        return len(self.sentence_buffer)>0
+
+
 def parse_many(messages):
     first_pass = collections.deque()
     for m in messages:

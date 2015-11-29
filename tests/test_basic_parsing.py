@@ -3,6 +3,10 @@ from unittest import TestCase
 from simpleais import *
 import simpleais
 
+fragmented_message_type_8 = ['!AIVDM,3,1,3,A,85NoHR1KfI99t:BHBI3sWpAoS7VHRblW8McQtR3lsFR,0*5A',
+                      '!AIVDM,3,2,3,A,ApU6wWmdIeJG7p1uUhk8Tp@SVV6D=sTKh1O4fBvUcaN,0*5E',
+                      '!AIVDM,3,3,3,A,j;lM8vfK0,2*34']
+
 
 class TestBasicParsing(TestCase):
     def test_convenience_parse(self):
@@ -35,9 +39,7 @@ class TestBasicParsing(TestCase):
         self.assertEqual(2, len(sentences))
 
     def test_fragment_assembly(self):
-        raw = ['!AIVDM,3,1,3,A,85NoHR1KfI99t:BHBI3sWpAoS7VHRblW8McQtR3lsFR,0*5A',
-               '!AIVDM,3,2,3,A,ApU6wWmdIeJG7p1uUhk8Tp@SVV6D=sTKh1O4fBvUcaN,0*5E',
-               '!AIVDM,3,3,3,A,j;lM8vfK0,2*34']
+        raw = fragmented_message_type_8
         sentences = simpleais.parse(raw)
         self.assertEqual(1, len(sentences))
         message_bytes = sum([len(m) - len('!AIVDM,3,1,3,A,') - len(',2*34') for m in raw])
@@ -45,14 +47,43 @@ class TestBasicParsing(TestCase):
         self.assertEquals(message_bits, len(sentences[0].message_bits()))
 
 
+class TestStreamParser(TestCase):
+    def test_simple_use(self):
+        p = StreamParser()
+        self.assertFalse(p.hasSentence())
+        p.add('!ABVDM,1,1,,A,15MqdBP001GRT>>CCUu360Lr041d,0*69')
+        self.assertTrue(p.hasSentence())
+        self.assertEqual(1, p.nextSentence().type_id())
+        self.assertFalse(p.hasSentence())
+
+    def test_buffer_results(self):
+        p = StreamParser()
+        self.assertFalse(p.hasSentence())
+        p.add('!ABVDM,1,1,,A,15MqdBP001GRT>>CCUu360Lr041d,0*69')
+        p.add('!ABVDM,1,1,,B,35NF6IPOiEoRe@HCBOS0VPeF0P00,0*54')
+        self.assertTrue(p.hasSentence())
+        self.assertEqual(1, p.nextSentence().type_id())
+        self.assertEqual(3, p.nextSentence().type_id())
+        self.assertFalse(p.hasSentence())
+
+    def test_fragment_assembly(self):
+        p = StreamParser()
+        i = iter(fragmented_message_type_8)
+        self.assertFalse(p.hasSentence())
+        p.add(i.__next__())
+        self.assertFalse(p.hasSentence())
+        p.add(i.__next__())
+        self.assertFalse(p.hasSentence())
+        p.add(i.__next__())
+        self.assertTrue(p.hasSentence())
+        self.assertEqual(8, p.nextSentence().type_id())
+        self.assertFalse(p.hasSentence())
+
+
 class TestFragmentPool(TestCase):
     def __init__(self, method_name='runTest'):
         super(TestFragmentPool, self).__init__(method_name)
-        self.raw_fragments = [
-            '!AIVDM,3,1,3,A,85NoHR1KfI99t:BHBI3sWpAoS7VHRblW8McQtR3lsFR,0*5A',
-            '!AIVDM,3,2,3,A,ApU6wWmdIeJG7p1uUhk8Tp@SVV6D=sTKh1O4fBvUcaN,0*5E',
-            '!AIVDM,3,3,3,A,j;lM8vfK0,2*34'
-        ]
+        self.raw_fragments = fragmented_message_type_8
 
         self.cooked_fragments = [parse_one(m) for m in self.raw_fragments]
 
@@ -77,6 +108,8 @@ class TestFragmentPool(TestCase):
         f.add(self.cooked_fragments[2])
         self.assertTrue(f.has_full_sentence())
         sentence = f.pop_full_sentence()
+
+        # TODO: limit size
 
 
 class TestNmeaPayload(TestCase):
