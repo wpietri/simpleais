@@ -10,44 +10,34 @@ class StreamParser:
     """
 
     def __init__(self):
-        self.fragment_pool = FragmentPool()
-        self.sentence_buffer=collections.deque()
-
+        self.fragment_pool = {'A': FragmentPool(), 'B': FragmentPool()}
+        self.sentence_buffer = collections.deque()
 
     def add(self, message_text):
         thing = parse_one(message_text)
         if isinstance(thing, Sentence):
             self.sentence_buffer.append(thing)
         elif isinstance(thing, SentenceFragment):
-            self.fragment_pool.add(thing)
-            if self.fragment_pool.has_full_sentence():
-                sentence = self.fragment_pool.pop_full_sentence()
+            pool = self.fragment_pool[thing.radio_channel]
+            pool.add(thing)
+            if pool.has_full_sentence():
+                sentence = pool.pop_full_sentence()
                 self.sentence_buffer.append(sentence)
-
 
     def nextSentence(self):
         return self.sentence_buffer.popleft()
 
     def hasSentence(self):
-        return len(self.sentence_buffer)>0
+        return len(self.sentence_buffer) > 0
 
 
 def parse_many(messages):
-    first_pass = collections.deque()
-    for m in messages:
-        first_pass.append(parse_one(m))
-
+    p = StreamParser()
     result = []
-    fragment_pool = FragmentPool()
-    while len(first_pass) > 0:
-        m = first_pass.popleft()
-        if isinstance(m, Sentence):
-            result.append(m)
-        else:
-            fragment_pool.add(m)
-            if fragment_pool.has_full_sentence():
-                result.append(fragment_pool.pop_full_sentence())
-
+    for m in messages:
+        p.add(m)
+        if p.hasSentence():
+            result.append(p.nextSentence())
     return result
 
 
@@ -160,9 +150,15 @@ class SentenceFragment:
     def initial(self):
         return self.fragment_number == 1
 
+    def last(self):
+        return self.fragment_number == self.total_fragments
+
     def key(self):
-        key = (self.talker, self.sentence_type, self.total_fragments, self.message_id)
+        key = (self.talker, self.sentence_type, self.total_fragments, self.message_id, self.radio_channel)
         return key
+
+    def follows(self, other):
+        return (self.fragment_number == other.fragment_number + 1) and self.key() == other.key()
 
     def bits(self):
         return self.payload.bits
@@ -227,19 +223,7 @@ class FragmentPool:
         self.full_sentence = None
 
     def has_full_sentence(self):
-        if self.full_sentence is None:
-            self._seek_full_sentence()
         return self.full_sentence is not None
-
-    def _seek_full_sentence(self):
-        initials = [f for f in self.fragments if f.initial()]
-        for initial in initials:
-            key = initial.key()
-            matches = [f for f in self.fragments if f.key() == key]
-            if len(matches) >= initial.total_fragments:
-                self.full_sentence = Sentence.from_fragments(matches)
-                for match in matches:
-                    self.fragments.remove(match)
 
     def pop_full_sentence(self):
         if not self.full_sentence:
@@ -249,4 +233,9 @@ class FragmentPool:
         return result
 
     def add(self, fragment):
+        if len(self.fragments) > 0 and not fragment.follows(self.fragments[-1]):
+            self.fragments.clear()
         self.fragments.append(fragment)
+        if fragment.last():
+            self.full_sentence = Sentence.from_fragments(self.fragments)
+            self.fragments.clear()

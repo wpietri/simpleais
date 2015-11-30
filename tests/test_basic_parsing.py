@@ -4,8 +4,8 @@ from simpleais import *
 import simpleais
 
 fragmented_message_type_8 = ['!AIVDM,3,1,3,A,85NoHR1KfI99t:BHBI3sWpAoS7VHRblW8McQtR3lsFR,0*5A',
-                      '!AIVDM,3,2,3,A,ApU6wWmdIeJG7p1uUhk8Tp@SVV6D=sTKh1O4fBvUcaN,0*5E',
-                      '!AIVDM,3,3,3,A,j;lM8vfK0,2*34']
+                             '!AIVDM,3,2,3,A,ApU6wWmdIeJG7p1uUhk8Tp@SVV6D=sTKh1O4fBvUcaN,0*5E',
+                             '!AIVDM,3,3,3,A,j;lM8vfK0,2*34']
 
 
 class TestBasicParsing(TestCase):
@@ -45,6 +45,31 @@ class TestBasicParsing(TestCase):
         message_bytes = sum([len(m) - len('!AIVDM,3,1,3,A,') - len(',2*34') for m in raw])
         message_bits = message_bytes * 6 - 2  # where 2 is padding on last fragment
         self.assertEquals(message_bits, len(sentences[0].message_bits()))
+
+
+class TestFragment(TestCase):
+    def test_last(self):
+        frags = [parse(f) for f in fragmented_message_type_8]
+        self.assertFalse(frags[0].last())
+        self.assertFalse(frags[1].last())
+        self.assertTrue(frags[2].last())
+
+    def test_follows(self):
+        frags = [parse(f) for f in fragmented_message_type_8]
+        self.assertTrue(frags[1].follows(frags[0]))
+        self.assertTrue(frags[2].follows(frags[1]))
+        self.assertFalse(frags[2].follows(frags[0]))
+        self.assertFalse(frags[0].follows(frags[2]))
+
+    def test_follows_for_different_messages(self):
+        frags = [parse(f) for f in ['!AIVDM,2,1,8,A,55NJ<1000001L@K;KS0=9U=@4j0TV2222222220U1p?456t007ThC`12,0*40',
+                                    '!AIVDM,2,2,8,A,AAkp88888888880,2*37',
+                                    '!AIVDM,2,1,4,B,54hB6<42CMBq`LAOB20EIHUH622222222222220U30J,0*1B',
+                                    '!AIVDM,2,2,4,B,5540Ht64kkAEj1DQH4mCSVH88880,2*4C']]
+        self.assertTrue(frags[1].follows(frags[0]))
+        self.assertTrue(frags[3].follows(frags[2]))
+        self.assertFalse(frags[2].follows(frags[0]))
+        self.assertFalse(frags[3].follows(frags[0]))
 
 
 class TestStreamParser(TestCase):
@@ -112,7 +137,7 @@ class TestFragmentPool(TestCase):
         self.assertTrue(f.has_full_sentence())
         sentence = f.pop_full_sentence()
 
-    def test_leftovers(self):
+    def test_leftovers_dont_harm_results(self):
         fragments = self.parse_fragments_separately(
             ['!ABVDM,2,1,2,A,55NJ<1000001L@K;KS0=9U=@4j0TV2222222220U1p?456t007ThC`12AAkp,0*5A',
              '!AIVDM,2,1,8,A,55NJ<1000001L@K;KS0=9U=@4j0TV2222222220U1p?456t007ThC`12,0*40',
@@ -132,9 +157,7 @@ class TestFragmentPool(TestCase):
         self.assertFalse(f.has_full_sentence())
         f.add(fragments[4])
         self.assertTrue(f.has_full_sentence())
-        print(len(sentence.message_bits().bin))
-        print(sentence.message_bits().bin)
-# TODO: limit size
+        sentence = f.pop_full_sentence()
 
 
 class TestNmeaPayload(TestCase):
