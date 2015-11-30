@@ -182,3 +182,15 @@ class TestNmeaPayload(TestCase):
         body = '15NaEPPP01oR`R6CC?<j@gvr0<1C'
         p = NmeaPayload('%s' % body, 0)
         self.assertEqual(6 * len(body), len(p))
+
+class TestNameParsing(TestCase):
+    def test_normal_name(self):
+        m = parse(['!AIVDM,2,1,0,B,55QEQ`42Cktc<IL?J20@tpNl61A8U@tr2222221@BhQ,0*45',
+                             '!AIVDM,2,2,0,B,H86tl0PDSlhDRE3p3F8888888880,2*57'])[0]
+        self.assertEqual('DONG-A TRITON', m['shipname'])
+
+    def test_strange_name(self):
+        m = parse(['!AIVDM,2,1,7,B,54`Ut;l2CO<P?H53<010DL5=E>1HuT4LE800001@LHi,0*12',
+        '!AIVDM,2,2,7,B,JF6uF0G1H40C0000000000000000,2*50'])[0]
+        self.assertEqual('PEGASUS VOYAGER', m['shipname'])
+

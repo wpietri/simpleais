@@ -209,7 +209,9 @@ class Sentence:
     def text(self, bits):
         raw_ints = [nibble.uint for nibble in bits.cut(6)]
         mapped_ints = [i if i > 31 else i + 64 for i in raw_ints]
-        return ''.join([chr(i) for i in mapped_ints]).strip()
+        text = ''.join([chr(i) for i in mapped_ints]).strip()
+        text = text.rstrip('@').strip()
+        return text
 
 
 class FragmentPool:
