@@ -1,7 +1,10 @@
 import collections
 from functools import reduce
+import re
 
 from bitstring import BitArray, Bits
+
+aivdm_pattern = re.compile(r'\![A-Z]{5},\d,\d,.?,[AB12],[^,]+,[0-5]\*[0-9A-F]{2}')
 
 
 class StreamParser:
@@ -241,3 +244,56 @@ class FragmentPool:
         if fragment.last():
             self.full_sentence = Sentence.from_fragments(self.fragments)
             self.fragments.clear()
+
+
+def sentences_from_source(source):
+    parser = StreamParser()
+    for line in lines_from_source(source):
+        try:
+            m = aivdm_pattern.search(line)
+            if m:
+                parser.add(m.group(0))
+                if parser.hasSentence():
+                    yield parser.nextSentence()
+            else:
+                print("skipped: ", line)
+        except Exception as e:
+            print("failure", e, "for", line)
+
+
+def lines_from_source(source):
+    if re.match("/dev/tty.*", source):
+        yield from _handle_serial_source(source)
+    elif re.match("https?://.*", source):
+        yield from _handle_url_source(source)
+    else:
+        # assume it's a file
+        yield from _handle_file_source(source)
+
+
+def _handle_serial_source(source):
+    import serial
+
+    while True:
+        with serial.Serial(source, 38400, timeout=10) as f:
+            while True:
+                raw_line = f.readline()
+                try:
+                    yield raw_line.decode('ascii')
+                except:
+                    print("weird input", raw_line)
+
+
+def _handle_url_source(source):
+    import urllib.request
+
+    while True:
+        with urllib.request.urlopen(source) as f:
+            for line in f:
+                yield line.decode('utf-8')
+
+
+def _handle_file_source(source):
+    with open(source) as f:
+        for line in f:
+            yield line
