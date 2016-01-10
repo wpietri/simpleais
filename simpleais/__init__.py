@@ -1,5 +1,6 @@
 import collections
 from functools import reduce
+import logging
 import re
 
 from bitstring import BitArray, Bits
@@ -246,21 +247,6 @@ class FragmentPool:
             self.fragments.clear()
 
 
-def sentences_from_source(source):
-    parser = StreamParser()
-    for line in lines_from_source(source):
-        try:
-            m = aivdm_pattern.search(line)
-            if m:
-                parser.add(m.group(0))
-                if parser.hasSentence():
-                    yield parser.nextSentence()
-            else:
-                print("skipped: ", line)
-        except Exception as e:
-            print("failure", e, "for", line)
-
-
 def lines_from_source(source):
     if re.match("/dev/tty.*", source):
         yield from _handle_serial_source(source)
@@ -269,6 +255,27 @@ def lines_from_source(source):
     else:
         # assume it's a file
         yield from _handle_file_source(source)
+
+def fragments_from_source(source):
+    for line in lines_from_source(source):
+        try:
+            m = aivdm_pattern.search(line)
+            if m:
+                yield m.group(0)
+            else:
+                logging.getLogger().warn("skipped: \"{}\"".format(line.strip()))
+        except Exception as e:
+            print("failure", e, "for", line)
+
+def sentences_from_source(source):
+    parser = StreamParser()
+    for fragment in fragments_from_source(source):
+        try:
+            parser.add(fragment)
+            if parser.hasSentence():
+                yield parser.nextSentence()
+        except Exception as e:
+            print("failure", e, "for", fragment)
 
 
 def _handle_serial_source(source):
