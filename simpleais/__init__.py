@@ -1,5 +1,6 @@
 import collections
 from functools import reduce
+import functools
 import logging
 import re
 
@@ -136,6 +137,20 @@ class NmeaPayload:
         selected_bits = _nmea_lookup[ascii_representation[-1]][0:bits_at_end]
         bits.append(selected_bits)
         return bits
+    # @staticmethod
+    # def _bits_for(ascii_representation, fill_bits):
+    #     length = len(ascii_representation) * 6 - fill_bits
+    #     bits = BitArray(length=length)
+    #     pos = 0
+    #     for c in range(0, len(ascii_representation) - 1):
+    #         char = _nmea_lookup[ascii_representation[c]]
+    #         bits.overwrite(char, pos)
+    #         pos += 6
+    #
+    #     bits_at_end = 6 - fill_bits
+    #     selected_bits = _nmea_lookup[ascii_representation[-1]][0:bits_at_end]
+    #     bits.overwrite(selected_bits, len(bits) - bits_at_end)
+    #     return bits
 
     def __len__(self):
         return len(self.bits)
@@ -175,6 +190,8 @@ class Sentence:
         self.radio_channel = radio_channel
         self.payload = payload
 
+    # @property
+    @functools.lru_cache()
     def type_id(self):
         return self.payload.bits[0:6].uint
 
@@ -191,26 +208,26 @@ class Sentence:
         bits = self.payload.bits
         if self.type_id() in [1, 2, 3]:
             if item == 'mmsi':
-                return self.mmsi(bits[8:38])
+                return self._parse_mmsi(bits[8:38])
             if item == 'lat':
-                return self.latlong(bits[89:116])
+                return self._parse_latlong(bits[89:116])
             if item == 'lon':
-                return self.latlong(bits[61:89])
+                return self._parse_latlong(bits[61:89])
         if self.type_id() == 5:
             if item == 'mmsi':
-                return self.mmsi(bits[8:38])
+                return self._parse_mmsi(bits[8:38])
             if item == 'shipname':
-                return self.text(bits[112:232])
+                return self._parse_text(bits[112:232])
             if item == 'destination':
-                return self.text(bits[302:422])
+                return self._parse_text(bits[302:422])
 
-    def mmsi(self, bits):
+    def _parse_mmsi(self, bits):
         return "%09i" % bits.uint
 
-    def latlong(self, bits):
+    def _parse_latlong(self, bits):
         return float("%.4f" % (bits.int / 60.0 / 10000.0))
 
-    def text(self, bits):
+    def _parse_text(self, bits):
         raw_ints = [nibble.uint for nibble in bits.cut(6)]
         mapped_ints = [i if i > 31 else i + 64 for i in raw_ints]
         text = ''.join([chr(i) for i in mapped_ints]).strip()
