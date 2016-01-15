@@ -3,6 +3,7 @@ from functools import reduce
 import functools
 import logging
 import re
+from time import sleep
 
 from bitstring import BitArray, Bits
 
@@ -299,22 +300,30 @@ def _handle_serial_source(source):
     import serial
 
     while True:
-        with serial.Serial(source, 38400, timeout=10) as f:
-            while True:
-                raw_line = f.readline()
-                try:
-                    yield raw_line.decode('ascii')
-                except:
-                    print("weird input", raw_line)
+        try:
+            with serial.Serial(source, 38400, timeout=10) as f:
+                while True:
+                    raw_line = f.readline()
+                    try:
+                        yield raw_line.decode('ascii')
+                    except:
+                        print("weird input", raw_line)
+        except Exception as e:
+            print("unexpected failure", e)
+            sleep(1)
 
 
 def _handle_url_source(source):
     import urllib.request
 
     while True:
-        with urllib.request.urlopen(source) as f:
-            for line in f:
-                yield line.decode('utf-8')
+        try:
+            with urllib.request.urlopen(source) as f:
+                for line in f:
+                    yield line.decode('utf-8')
+        except Exception as e:
+            print("unexpected failure", e)
+            sleep(1)
 
 
 def _handle_file_source(source):
