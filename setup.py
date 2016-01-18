@@ -7,4 +7,4 @@ setup(name='simpleais',
       author='William Pietri',
       license='Apache 2.0',
       packages=['simpleais'],
-      install_requires=['bitstring'])
+      install_requires=['bitstring', 'testfixtures'])
