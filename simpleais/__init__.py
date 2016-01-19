@@ -5,7 +5,6 @@ import logging
 import re
 from time import sleep
 
-from bitstring import BitArray, Bits
 
 aivdm_pattern = re.compile(r'\![A-Z]{5},\d,\d,.?,[AB12],[^,]+,[0-5]\*[0-9A-F]{2}')
 
@@ -104,9 +103,9 @@ class SentenceType(NMEAThing):
 def _make_nmea_lookup_table():
     lookup = {}
     for val in range(48, 88):
-        lookup[chr(val)] = Bits(uint=val - 48, length=6)
+        lookup[chr(val)] = "{:06b}".format(val - 48)
     for val in range(96, 120):
-        lookup[chr(val)] = Bits(uint=val - 56, length=6)
+        lookup[chr(val)] = "{:06b}".format(val - 56)
     return lookup
 
 
@@ -124,34 +123,20 @@ class NmeaPayload:
     """
 
     def __init__(self, raw_data, fill_bits=0):
-        if isinstance(raw_data, Bits):
+        if re.match("^[01]{6,}$",raw_data):
             self.bits = raw_data
         else:
             self.bits = self._bits_for(raw_data, fill_bits)
 
     @staticmethod
     def _bits_for(ascii_representation, fill_bits):
-        bits = BitArray(None)
+        bits = ""
         for c in range(0, len(ascii_representation) - 1):
-            bits.append(_nmea_lookup[ascii_representation[c]])
+            bits += _nmea_lookup[ascii_representation[c]]
         bits_at_end = 6 - fill_bits
         selected_bits = _nmea_lookup[ascii_representation[-1]][0:bits_at_end]
-        bits.append(selected_bits)
+        bits += selected_bits
         return bits
-    # @staticmethod
-    # def _bits_for(ascii_representation, fill_bits):
-    #     length = len(ascii_representation) * 6 - fill_bits
-    #     bits = BitArray(length=length)
-    #     pos = 0
-    #     for c in range(0, len(ascii_representation) - 1):
-    #         char = _nmea_lookup[ascii_representation[c]]
-    #         bits.overwrite(char, pos)
-    #         pos += 6
-    #
-    #     bits_at_end = 6 - fill_bits
-    #     selected_bits = _nmea_lookup[ascii_representation[-1]][0:bits_at_end]
-    #     bits.overwrite(selected_bits, len(bits) - bits_at_end)
-    #     return bits
 
     def __len__(self):
         return len(self.bits)
@@ -194,7 +179,7 @@ class Sentence:
     # @property
     @functools.lru_cache()
     def type_id(self):
-        return self.payload.bits[0:6].uint
+        return int(self.payload.bits[0:6],2)
 
     def message_bits(self):
         return self.payload.bits
@@ -223,13 +208,22 @@ class Sentence:
                 return self._parse_text(bits[302:422])
 
     def _parse_mmsi(self, bits):
-        return "%09i" % bits.uint
+        return "%09i" % int(bits,2)
 
     def _parse_latlong(self, bits):
-        return float("%.4f" % (bits.int / 60.0 / 10000.0))
+        def twos_comp(val, bits):
+            if (val & (1 << (bits - 1))) != 0: # if sign bit is set e.g., 8bit: 128-255
+                val = val - (1 << bits)        # compute negative value
+            return val
+        out = twos_comp(int(bits,2), len(bits))
+        result = float("%.4f" % (out / 60.0 / 10000.0))
+        return result
 
     def _parse_text(self, bits):
-        raw_ints = [nibble.uint for nibble in bits.cut(6)]
+        def chunks(s, n):
+            for i in range(0, len(s), n):
+                yield s[i:i+n]
+        raw_ints = [int(nibble,2) for nibble in chunks(bits,6)]
         mapped_ints = [i if i > 31 else i + 64 for i in raw_ints]
         text = ''.join([chr(i) for i in mapped_ints]).strip()
         text = text.rstrip('@').strip()
