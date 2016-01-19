@@ -165,17 +165,17 @@ class TestNmeaPayload(TestCase):
         body, fill_bits = '1', 0
         p = NmeaPayload(body, fill_bits)
         self.assertEqual(6, len(p))
-        self.assertEqual('000001', p.bits)
+        self.assertEqual(Bits(1,6), p.bits)
 
     def test_construction_from_bits(self):
-        p = NmeaPayload('000001')
+        p = NmeaPayload(Bits('000001'))
         self.assertEqual(6, len(p))
-        self.assertEqual('000001', p.bits)
+        self.assertEqual('000001', p.bits.contents)
 
     def test_padding(self):
         for fill_bits in range(0, 6):
             payload = NmeaPayload('w', fill_bits)
-            self.assertEqual('111111'[0:(6 - fill_bits)], payload.bits,
+            self.assertEqual(Bits('111111')[0:(6 - fill_bits)], payload.bits,
                              msg='failure for {} fill bits'.format(fill_bits))
 
     def test_full_message(self):

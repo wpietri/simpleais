@@ -27,16 +27,20 @@ class Counter:
 
 
 counter = Counter()
+filename = 'sample.ais'
+
 with Timer() as t1:
-    for line in lines_from_source('sample.ais'):
+    for line in lines_from_source(filename):
         counter.countChars(line)
 
+print("comparison load takes", t1.duration)
+
 with Timer() as t2:
-    for sentence in sentences_from_source('sample.ais'):
+    for sentence in sentences_from_source(filename):
         counter.count(sentence['mmsi'])
 
-print("comparison load takes", t1.duration)
 print("actual load takes    ", t2.duration)
+
 print()
-print("expected ratio is ~20")
+print("expected ratio is ~2")
 print("actual ratio is   ", t2.duration / t1.duration)

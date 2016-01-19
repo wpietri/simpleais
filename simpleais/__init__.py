@@ -1,12 +1,53 @@
 import collections
 from functools import reduce
-import functools
 import logging
 import re
 from time import sleep
 
-
 aivdm_pattern = re.compile(r'\![A-Z]{5},\d,\d,.?,[AB12],[^,]+,[0-5]\*[0-9A-F]{2}')
+
+
+class Bits:
+    def __init__(self, *args, **kwargs):
+        if len(args)==0:
+            self.contents = ""
+        elif len(args)==1:
+            if isinstance(args[0], str):
+                self.contents = args[0]
+            elif isinstance(args[0], int):
+                self.contents = "{:b}".format(args[0])
+            else:
+                raise ValueError("don't know how to parse {}".format(args[0]))
+        elif len(args)==2 and isinstance(args[0], int):
+            format = "{:0" + str(args[1]) + "b}"
+            self.contents = format.format(args[0])
+        else:
+            raise ValueError("don't know how to parse {}, {}".format(args[0], args[1]))
+
+
+    def append(self, other):
+        if not isinstance(other, Bits):
+            raise ValueError
+        self.contents += other.contents
+
+    def __int__(self):
+        return int(self.contents, 2)
+
+    def __getitem__(self, given):
+        return Bits(self.contents.__getitem__(given))
+
+    def __add__(self, other):
+        return Bits(self.contents + other.contents)
+
+    def __len__(self):
+        return self.contents.__len__()
+
+    def __eq__(self, other):
+        return self.contents.__eq__(other.contents)
+
+    @classmethod
+    def join(cls, array):
+        return Bits(''.join(b.contents for b in array))
 
 
 class StreamParser:
@@ -103,9 +144,9 @@ class SentenceType(NMEAThing):
 def _make_nmea_lookup_table():
     lookup = {}
     for val in range(48, 88):
-        lookup[chr(val)] = "{:06b}".format(val - 48)
+        lookup[chr(val)] = Bits(val - 48, 6)
     for val in range(96, 120):
-        lookup[chr(val)] = "{:06b}".format(val - 56)
+        lookup[chr(val)] = Bits(val - 56, 6)
     return lookup
 
 
@@ -123,20 +164,20 @@ class NmeaPayload:
     """
 
     def __init__(self, raw_data, fill_bits=0):
-        if re.match("^[01]{6,}$",raw_data):
+        if isinstance(raw_data, Bits):
             self.bits = raw_data
         else:
             self.bits = self._bits_for(raw_data, fill_bits)
 
     @staticmethod
     def _bits_for(ascii_representation, fill_bits):
-        bits = ""
-        for c in range(0, len(ascii_representation) - 1):
-            bits += _nmea_lookup[ascii_representation[c]]
+        buf = []
+        for pos in range(0, len(ascii_representation) - 1):
+            buf.append(_nmea_lookup[ascii_representation[pos]])
         bits_at_end = 6 - fill_bits
         selected_bits = _nmea_lookup[ascii_representation[-1]][0:bits_at_end]
-        bits += selected_bits
-        return bits
+        buf.append(selected_bits)
+        return Bits.join(buf)
 
     def __len__(self):
         return len(self.bits)
@@ -176,10 +217,8 @@ class Sentence:
         self.radio_channel = radio_channel
         self.payload = payload
 
-    # @property
-    @functools.lru_cache()
     def type_id(self):
-        return int(self.payload.bits[0:6],2)
+        return int(self.payload.bits[0:6])
 
     def message_bits(self):
         return self.payload.bits
@@ -208,22 +247,24 @@ class Sentence:
                 return self._parse_text(bits[302:422])
 
     def _parse_mmsi(self, bits):
-        return "%09i" % int(bits,2)
+        return "%09i" % int(bits)
 
     def _parse_latlong(self, bits):
         def twos_comp(val, bits):
-            if (val & (1 << (bits - 1))) != 0: # if sign bit is set e.g., 8bit: 128-255
-                val = val - (1 << bits)        # compute negative value
+            if (val & (1 << (bits - 1))) != 0:  # if sign bit is set e.g., 8bit: 128-255
+                val = val - (1 << bits)  # compute negative value
             return val
-        out = twos_comp(int(bits,2), len(bits))
+
+        out = twos_comp(int(bits), len(bits))
         result = float("%.4f" % (out / 60.0 / 10000.0))
         return result
 
     def _parse_text(self, bits):
         def chunks(s, n):
             for i in range(0, len(s), n):
-                yield s[i:i+n]
-        raw_ints = [int(nibble,2) for nibble in chunks(bits,6)]
+                yield s[i:i + n]
+
+        raw_ints = [int(nibble) for nibble in chunks(bits, 6)]
         mapped_ints = [i if i > 31 else i + 64 for i in raw_ints]
         text = ''.join([chr(i) for i in mapped_ints]).strip()
         text = text.rstrip('@').strip()
@@ -268,6 +309,7 @@ def lines_from_source(source):
         # assume it's a file
         yield from _handle_file_source(source)
 
+
 def fragments_from_source(source):
     for line in lines_from_source(source):
         try:
@@ -278,6 +320,7 @@ def fragments_from_source(source):
                 logging.getLogger().warn("skipped: \"{}\"".format(line.strip()))
         except Exception as e:
             print("failure", e, "for", line)
+
 
 def sentences_from_source(source):
     parser = StreamParser()
