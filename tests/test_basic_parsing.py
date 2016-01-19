@@ -170,7 +170,7 @@ class TestNmeaPayload(TestCase):
     def test_construction_from_bits(self):
         p = NmeaPayload(Bits('000001'))
         self.assertEqual(6, len(p))
-        self.assertEqual('000001', p.bits.contents)
+        self.assertEqual('000001', str(p.bits))
 
     def test_padding(self):
         for fill_bits in range(0, 6):

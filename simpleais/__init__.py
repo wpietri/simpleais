@@ -7,46 +7,84 @@ from time import sleep
 aivdm_pattern = re.compile(r'![A-Z]{5},\d,\d,.?,[AB12],[^,]+,[0-5]\*[0-9A-F]{2}')
 
 
+_bitmasks = [0, 1]
+
+def mask(bits):
+    last_available = len(_bitmasks) - 1
+    if last_available < bits:
+        for pos in range(last_available+1, bits+1):
+            _bitmasks.append((_bitmasks[-1] << 1) | 1)
+    return _bitmasks[bits]
+
+
 class Bits:
     def __init__(self, *args):
         if len(args) == 0:
-            self.contents = ""
+            self.value = 0
+            self.length = 0
         elif len(args) == 1:
-            if isinstance(args[0], str):
-                self.contents = args[0]
+            if isinstance(args[0], Bits):
+                self.value = args[0].value
+                self.length = args[0].length
+            elif isinstance(args[0], str):
+                self.value = int(args[0], 2)
+                self.length = len(args[0])
             elif isinstance(args[0], int):
-                self.contents = "{:b}".format(args[0])
+                self.value = args[0]
+                self.length = self.value.bit_length()
+                if self.value == 0:
+                    self.length = 1
+                    print("doing it right")
             else:
                 raise ValueError("don't know how to parse {}".format(args[0]))
         elif len(args) == 2 and isinstance(args[0], int):
-            format_string = "{:0" + str(args[1]) + "b}"
-            self.contents = format_string.format(args[0])
+            self.value = args[0]
+            self.length = args[1]
         else:
             raise ValueError("don't know how to parse {}, {}".format(args[0], args[1]))
 
     def append(self, other):
-        if not isinstance(other, Bits):
-            raise ValueError
-        self.contents += other.contents
+        self.value = self.value << other.length | other.value
+        self.length = self.length + other.length
 
     def __int__(self):
-        return int(self.contents, 2)
+        return self.value
 
-    def __getitem__(self, given):
-        return Bits(self.contents.__getitem__(given))
+    def __getitem__(self, key):
+        if isinstance(key, int):
+            pos = self.length - 1 - key
+            return Bits((self.value >> pos) & mask(1), 1)
+        elif isinstance(key, slice):
+            shift = self.length - key.stop
+            new_length = key.stop - key.start
+            return Bits((self.value >> shift) & mask(new_length), new_length)
 
     def __add__(self, other):
-        return Bits(self.contents + other.contents)
+        result = Bits(self)
+        result.append(other)
+        return result
 
     def __len__(self):
-        return self.contents.__len__()
+        return self.length
 
     def __eq__(self, other):
-        return self.contents.__eq__(other.contents)
+        return self.value.__eq__(other.value) and self.length.__eq__(other.length)
+
+    def __str__(self):
+        if self.length == 0:
+            return ''
+        format_string = "{:0" + str(self.length) + "b}"
+        return format_string.format(self.value)
+
+    def __repr__(self):
+        return "Bits({})".format(str(self))
 
     @classmethod
     def join(cls, array):
-        return Bits(''.join(b.contents for b in array))
+        result = Bits()
+        for b in array:
+            result.append(b)
+        return result
 
 
 class StreamParser:
@@ -170,13 +208,13 @@ class NmeaPayload:
 
     @staticmethod
     def _bits_for(ascii_representation, fill_bits):
-        buf = []
+        result = Bits()
         for pos in range(0, len(ascii_representation) - 1):
-            buf.append(_nmea_lookup[ascii_representation[pos]])
+            result.append(_nmea_lookup[ascii_representation[pos]])
         bits_at_end = 6 - fill_bits
         selected_bits = _nmea_lookup[ascii_representation[-1]][0:bits_at_end]
-        buf.append(selected_bits)
-        return Bits.join(buf)
+        result.append(selected_bits)
+        return result
 
     def __len__(self):
         return len(self.bits)
