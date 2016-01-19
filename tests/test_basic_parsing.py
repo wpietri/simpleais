@@ -75,34 +75,34 @@ class TestFragment(TestCase):
 class TestStreamParser(TestCase):
     def test_simple_use(self):
         p = StreamParser()
-        self.assertFalse(p.hasSentence())
+        self.assertFalse(p.has_sentence())
         p.add('!ABVDM,1,1,,A,15MqdBP001GRT>>CCUu360Lr041d,0*69')
-        self.assertTrue(p.hasSentence())
-        self.assertEqual(1, p.nextSentence().type_id())
-        self.assertFalse(p.hasSentence())
+        self.assertTrue(p.has_sentence())
+        self.assertEqual(1, p.next_sentence().type_id())
+        self.assertFalse(p.has_sentence())
 
     def test_buffer_results(self):
         p = StreamParser()
-        self.assertFalse(p.hasSentence())
+        self.assertFalse(p.has_sentence())
         p.add('!ABVDM,1,1,,A,15MqdBP001GRT>>CCUu360Lr041d,0*69')
         p.add('!ABVDM,1,1,,B,35NF6IPOiEoRe@HCBOS0VPeF0P00,0*54')
-        self.assertTrue(p.hasSentence())
-        self.assertEqual(1, p.nextSentence().type_id())
-        self.assertEqual(3, p.nextSentence().type_id())
-        self.assertFalse(p.hasSentence())
+        self.assertTrue(p.has_sentence())
+        self.assertEqual(1, p.next_sentence().type_id())
+        self.assertEqual(3, p.next_sentence().type_id())
+        self.assertFalse(p.has_sentence())
 
     def test_fragment_assembly(self):
         p = StreamParser()
         i = iter(fragmented_message_type_8)
-        self.assertFalse(p.hasSentence())
+        self.assertFalse(p.has_sentence())
         p.add(next(i))
-        self.assertFalse(p.hasSentence())
+        self.assertFalse(p.has_sentence())
         p.add(next(i))
-        self.assertFalse(p.hasSentence())
+        self.assertFalse(p.has_sentence())
         p.add(next(i))
-        self.assertTrue(p.hasSentence())
-        self.assertEqual(8, p.nextSentence().type_id())
-        self.assertFalse(p.hasSentence())
+        self.assertTrue(p.has_sentence())
+        self.assertEqual(8, p.next_sentence().type_id())
+        self.assertFalse(p.has_sentence())
 
 
 class TestFragmentPool(TestCase):

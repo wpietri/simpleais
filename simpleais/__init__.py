@@ -4,26 +4,25 @@ import logging
 import re
 from time import sleep
 
-aivdm_pattern = re.compile(r'\![A-Z]{5},\d,\d,.?,[AB12],[^,]+,[0-5]\*[0-9A-F]{2}')
+aivdm_pattern = re.compile(r'![A-Z]{5},\d,\d,.?,[AB12],[^,]+,[0-5]\*[0-9A-F]{2}')
 
 
 class Bits:
-    def __init__(self, *args, **kwargs):
-        if len(args)==0:
+    def __init__(self, *args):
+        if len(args) == 0:
             self.contents = ""
-        elif len(args)==1:
+        elif len(args) == 1:
             if isinstance(args[0], str):
                 self.contents = args[0]
             elif isinstance(args[0], int):
                 self.contents = "{:b}".format(args[0])
             else:
                 raise ValueError("don't know how to parse {}".format(args[0]))
-        elif len(args)==2 and isinstance(args[0], int):
-            format = "{:0" + str(args[1]) + "b}"
-            self.contents = format.format(args[0])
+        elif len(args) == 2 and isinstance(args[0], int):
+            format_string = "{:0" + str(args[1]) + "b}"
+            self.contents = format_string.format(args[0])
         else:
             raise ValueError("don't know how to parse {}, {}".format(args[0], args[1]))
-
 
     def append(self, other):
         if not isinstance(other, Bits):
@@ -70,10 +69,10 @@ class StreamParser:
                 sentence = pool.pop_full_sentence()
                 self.sentence_buffer.append(sentence)
 
-    def nextSentence(self):
+    def next_sentence(self):
         return self.sentence_buffer.popleft()
 
-    def hasSentence(self):
+    def has_sentence(self):
         return len(self.sentence_buffer) > 0
 
 
@@ -82,8 +81,8 @@ def parse_many(messages):
     result = []
     for m in messages:
         p.add(m)
-        if p.hasSentence():
-            result.append(p.nextSentence())
+        if p.has_sentence():
+            result.append(p.next_sentence())
     return result
 
 
@@ -250,9 +249,9 @@ class Sentence:
         return "%09i" % int(bits)
 
     def _parse_latlong(self, bits):
-        def twos_comp(val, bits):
-            if (val & (1 << (bits - 1))) != 0:  # if sign bit is set e.g., 8bit: 128-255
-                val = val - (1 << bits)  # compute negative value
+        def twos_comp(val, length):
+            if (val & (1 << (length - 1))) != 0:  # if sign bit is set e.g., 8bit: 128-255
+                val = val - (1 << length)  # compute negative value
             return val
 
         out = twos_comp(int(bits), len(bits))
@@ -327,12 +326,13 @@ def sentences_from_source(source):
     for fragment in fragments_from_source(source):
         try:
             parser.add(fragment)
-            if parser.hasSentence():
-                yield parser.nextSentence()
+            if parser.has_sentence():
+                yield parser.next_sentence()
         except Exception as e:
             print("failure", e, "for", fragment)
 
 
+# noinspection PyBroadException
 def _handle_serial_source(source):
     import serial
 
@@ -343,8 +343,8 @@ def _handle_serial_source(source):
                     raw_line = f.readline()
                     try:
                         yield raw_line.decode('ascii')
-                    except:
-                        print("weird input", raw_line)
+                    except Exception as e:
+                        print("weird input", raw_line, e)
         except Exception as e:
             print("unexpected failure", e)
             sleep(1)
