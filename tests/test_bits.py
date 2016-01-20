@@ -19,6 +19,9 @@ class TestBits(TestCase):
     def test_bits_from_bits(self):
         self.assertEqual(Bits('1'), Bits(Bits('1')))
 
+    def test_from_ints(self):
+        self.assertEqual('1111111', str(Bits([63,63], 7)))
+
     def test_bits_is_bits(self):
         self.assertEqual('1001', str(Bits('1001')))
 
@@ -33,6 +36,19 @@ class TestBits(TestCase):
     def test_join(self):
         buf = [Bits('100'), Bits('000'), Bits('001')]
         self.assertEqual(Bits('100000001'), Bits.join(buf))
+
+    def test_add(self):
+        result = Bits('100') + Bits('000') + Bits('001')
+        self.assertEqual(Bits('100000001'), result)
+
+    def test_append(self):
+        buf = Bits()
+        buf.append(Bits('100'))
+        self.assertEqual(Bits('100'), buf)
+        buf.append(Bits('000'))
+        self.assertEqual(Bits('100000'), buf)
+        buf.append(Bits('001'))
+        self.assertEqual(Bits('100000001'), buf)
 
     def test_extract_single_bits(self):
         bits = Bits("00011011")
@@ -49,4 +65,5 @@ class TestBits(TestCase):
         bits = Bits("00011011")
         self.assertEqual(Bits('00'), bits[0:2])
         self.assertEqual(Bits('0001'), bits[0:4])
+        self.assertEqual(Bits('000110'), bits[0:6])
         self.assertEqual(Bits('1011'), bits[4:8])
