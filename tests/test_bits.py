@@ -19,9 +19,6 @@ class TestBits(TestCase):
     def test_bits_from_bits(self):
         self.assertEqual(Bits('1'), Bits(Bits('1')))
 
-    def test_from_ints(self):
-        self.assertEqual('1111111', str(Bits([63,63], 7)))
-
     def test_bits_is_bits(self):
         self.assertEqual('1001', str(Bits('1001')))
 
