@@ -3,8 +3,10 @@ from functools import reduce
 import logging
 import re
 from time import sleep
+from datetime import datetime
 
-aivdm_pattern = re.compile(r'![A-Z]{5},\d,\d,.?,[AB12],[^,]+,[0-5]\*[0-9A-F]{2}')
+aivdm_pattern = re.compile(r'([.0-9]+)?\s*(![A-Z]{5},\d,\d,.?,[AB12],[^,]+,[0-5]\*[0-9A-F]{2})')
+
 
 class Bits:
     def __init__(self, *args):
@@ -93,9 +95,17 @@ def parse_many(messages):
     return result
 
 
-def parse_one(message):
-    if message == '':
+def parse_one(string):
+    m = aivdm_pattern.search(string)
+    if not m:
         return None
+
+    if m.group(1):
+        time = datetime.fromtimestamp(float(m.group(1)))
+    else:
+        time = None
+
+    message = m.group(2)
 
     content, checksum = message[1:].split('*')
     fields = content.split(',')
@@ -106,12 +116,12 @@ def parse_one(message):
     payload = NmeaPayload(fields[5], int(fields[6]))
 
     if fragment_count == 1:
-        return Sentence(talker, sentence_type, radio_channel, payload)
+        return Sentence(talker, sentence_type, radio_channel, payload, time, string)
     else:
         fragment_number = int(fields[2])
         message_id = int(fields[3])
         return SentenceFragment(talker, sentence_type, fragment_count, fragment_number,
-                                message_id, radio_channel, payload)
+                                message_id, radio_channel, payload, time, string)
 
 
 def parse(message):
@@ -190,7 +200,8 @@ class NmeaPayload:
 
 
 class SentenceFragment:
-    def __init__(self, talker, sentence_type, total_fragments, fragment_number, message_id, radio_channel, payload):
+    def __init__(self, talker, sentence_type, total_fragments, fragment_number, message_id, radio_channel, payload,
+                 time=None, text=None):
         self.talker = talker
         self.sentence_type = sentence_type
         self.total_fragments = total_fragments
@@ -198,6 +209,8 @@ class SentenceFragment:
         self.message_id = message_id
         self.radio_channel = radio_channel
         self.payload = payload
+        self.time = time
+        self.text = text
 
     def initial(self):
         return self.fragment_number == 1
@@ -217,11 +230,13 @@ class SentenceFragment:
 
 
 class Sentence:
-    def __init__(self, talker, sentence_type, radio_channel, payload):
+    def __init__(self, talker, sentence_type, radio_channel,  payload, time=None, text=None):
         self.talker = talker
         self.sentence_type = sentence_type
         self.radio_channel = radio_channel
         self.payload = payload
+        self.time = time
+        self.text = text
 
     def type_id(self):
         return int(self.payload.bits[0:6])
@@ -233,7 +248,8 @@ class Sentence:
     def from_fragments(cls, matching_fragments):
         first = matching_fragments[0]
         message_bits = reduce(lambda a, b: a + b, [f.bits() for f in matching_fragments])
-        return Sentence(first.talker, first.sentence_type, first.radio_channel, NmeaPayload(message_bits))
+        text = [f.text for f in matching_fragments]
+        return Sentence(first.talker, first.sentence_type, first.radio_channel, NmeaPayload(message_bits), first.time, text)
 
     def __getitem__(self, item):
         bits = self.payload.bits

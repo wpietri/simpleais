@@ -26,8 +26,8 @@ class TestSourceHandling(TestCase):
             with tempfile.NamedTemporaryFile() as file:
                 self.write_sample_data(file)
 
-                sentences = list(fragments_from_source(file.name))
-                self.assertEqual(4, len(sentences))
+                fragments = list(fragments_from_source(file.name))
+                self.assertEqual(4, len(fragments))
             logs.check(('root', 'WARNING', 'skipped: "garbage data"'))
 
     def test_file_source_by_sentence(self):

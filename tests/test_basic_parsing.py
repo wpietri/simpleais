@@ -38,6 +38,11 @@ class TestBasicParsing(TestCase):
         ])
         self.assertEqual(2, len(sentences))
 
+    def test_optional_date(self):
+        text = "1454124838.633\t!ABVDM,1,1,,A,15NaEPPP01oR`R6CC?<j@gvr0<1C,0*1F"
+        sentence = simpleais.parse(text)
+        self.assertEqual(datetime.fromtimestamp(1454124838.633), sentence.time)
+
     def test_fragment_assembly(self):
         raw = fragmented_message_type_8
         sentences = simpleais.parse(raw)
@@ -45,6 +50,15 @@ class TestBasicParsing(TestCase):
         message_bytes = sum([len(m) - len('!AIVDM,3,1,3,A,') - len(',2*34') for m in raw])
         message_bits = message_bytes * 6 - 2  # where 2 is padding on last fragment
         self.assertEquals(message_bits, len(sentences[0].message_bits()))
+
+    def test_round_trip_for_single_fragment(self):
+        text = '!ABVDM,1,1,,A,15NaEPPP01oR`R6CC?<j@gvr0<1C,0*1F'
+        sentence = simpleais.parse(text)
+        self.assertEqual(text, sentence.text)
+
+    def test_round_trip_for_multiple_fragments(self):
+        sentence = simpleais.parse(fragmented_message_type_8)[0]
+        self.assertEqual(fragmented_message_type_8, sentence.text)
 
 
 class TestFragment(TestCase):
@@ -135,7 +149,7 @@ class TestFragmentPool(TestCase):
         f.add(self.cooked_fragments[1])
         f.add(self.cooked_fragments[2])
         self.assertTrue(f.has_full_sentence())
-        sentence = f.pop_full_sentence()
+        f.pop_full_sentence()
 
     def test_leftovers_dont_harm_results(self):
         fragments = self.parse_fragments_separately(
@@ -151,13 +165,13 @@ class TestFragmentPool(TestCase):
         self.assertFalse(f.has_full_sentence())
         f.add(fragments[2])
         self.assertTrue(f.has_full_sentence())
-        sentence = f.pop_full_sentence()
+        f.pop_full_sentence()
         self.assertFalse(f.has_full_sentence())
         f.add(fragments[3])
         self.assertFalse(f.has_full_sentence())
         f.add(fragments[4])
         self.assertTrue(f.has_full_sentence())
-        sentence = f.pop_full_sentence()
+        f.pop_full_sentence()
 
 
 class TestNmeaPayload(TestCase):
@@ -165,7 +179,7 @@ class TestNmeaPayload(TestCase):
         body, fill_bits = '1', 0
         p = NmeaPayload(body, fill_bits)
         self.assertEqual(6, len(p))
-        self.assertEqual(Bits(1,6), p.bits)
+        self.assertEqual(Bits(1, 6), p.bits)
 
     def test_construction_from_bits(self):
         p = NmeaPayload(Bits('000001'))
@@ -183,14 +197,14 @@ class TestNmeaPayload(TestCase):
         p = NmeaPayload('%s' % body, 0)
         self.assertEqual(6 * len(body), len(p))
 
+
 class TestNameParsing(TestCase):
     def test_normal_name(self):
         m = parse(['!AIVDM,2,1,0,B,55QEQ`42Cktc<IL?J20@tpNl61A8U@tr2222221@BhQ,0*45',
-                             '!AIVDM,2,2,0,B,H86tl0PDSlhDRE3p3F8888888880,2*57'])[0]
+                   '!AIVDM,2,2,0,B,H86tl0PDSlhDRE3p3F8888888880,2*57'])[0]
         self.assertEqual('DONG-A TRITON', m['shipname'])
 
     def test_strange_name(self):
         m = parse(['!AIVDM,2,1,7,B,54`Ut;l2CO<P?H53<010DL5=E>1HuT4LE800001@LHi,0*12',
-        '!AIVDM,2,2,7,B,JF6uF0G1H40C0000000000000000,2*50'])[0]
+                   '!AIVDM,2,2,7,B,JF6uF0G1H40C0000000000000000,2*50'])[0]
         self.assertEqual('PEGASUS VOYAGER', m['shipname'])
-
