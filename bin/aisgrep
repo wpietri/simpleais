@@ -10,7 +10,11 @@ def print_sentence(text):
         for line in text:
             print(line)
 
+def main():
+    print("in main", file=sys.stderr)
+    for source in sys.argv[1:]:
+        for sentence in sentences_from_source(source):
+            print_sentence(sentence.text)
 
-for source in sys.argv[1:]:
-    for sentence in sentences_from_source(source):
-        print_sentence(sentence.text)
+if __name__ == "__main__":
+    main()

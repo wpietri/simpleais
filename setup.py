@@ -8,5 +8,5 @@ setup(name='simpleais',
       license='Apache 2.0',
       packages=['simpleais'],
       install_requires=['bitstring', 'testfixtures'],
-      scripts=['bin/aisgrep']
+      scripts=['bin/aisgrep'],
       )
