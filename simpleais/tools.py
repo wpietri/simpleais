@@ -1,6 +1,6 @@
-import sys
+import click
 
-from simpleais import sentences_from_source
+from . import sentences_from_source
 
 
 def print_sentence(text):
@@ -10,11 +10,10 @@ def print_sentence(text):
         for line in text:
             print(line)
 
-def main():
-    print("in main", file=sys.stderr)
-    for source in sys.argv[1:]:
+
+@click.command()
+@click.argument('sources', nargs=-1)
+def grep(sources):
+    for source in sources:
         for sentence in sentences_from_source(source):
             print_sentence(sentence.text)
-
-if __name__ == "__main__":
-    main()

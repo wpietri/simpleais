@@ -1,4 +1,4 @@
-from setuptools import setup
+from setuptools import setup, find_packages
 
 setup(name='simpleais',
       version=0.1,
@@ -6,7 +6,11 @@ setup(name='simpleais',
       url='https://github.com/wpietri/simpleais',
       author='William Pietri',
       license='Apache 2.0',
-      packages=['simpleais'],
-      install_requires=['bitstring', 'testfixtures'],
-      scripts=['bin/aisgrep'],
+      packages=find_packages(),
+      install_requires=['bitstring', 'testfixtures', 'Click'],
+      entry_points={
+          'console_scripts': [
+              'aisgrep = simpleais.tools:grep',
+          ],
+      },
       )
