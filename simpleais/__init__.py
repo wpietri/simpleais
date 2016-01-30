@@ -1,5 +1,6 @@
 import collections
 from functools import reduce
+from io import TextIOBase
 import logging
 import re
 from time import sleep
@@ -323,7 +324,10 @@ class FragmentPool:
 
 
 def lines_from_source(source):
-    if re.match("/dev/tty.*", source):
+    if isinstance(source, TextIOBase):
+        for line in source:
+            yield line
+    elif re.match("/dev/tty.*", source):
         yield from _handle_serial_source(source)
     elif re.match("https?://.*", source):
         yield from _handle_url_source(source)
