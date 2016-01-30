@@ -1,3 +1,4 @@
+import os
 import sys
 
 import click
@@ -6,12 +7,12 @@ from . import sentences_from_source
 
 # todo: aisburst
 
-def print_sentence_source(text):
+def print_sentence_source(text, file=sys.stdout):
     if isinstance(text, str):
-        print(text)
+        print(text, file=file)
     else:
         for line in text:
-            print(line)
+            print(line, file=file)
 
 
 def sentences_from_sources(sources):
@@ -41,3 +42,24 @@ def grep(sources, mmsi):
 def as_text(sources):
     for sentence in sentences_from_sources(sources):
         print("{} {:2} {:10}".format(sentence.time, sentence.type_id(), str(sentence['mmsi'])))
+
+
+@click.command()
+@click.argument('source', nargs=1)
+@click.argument('dest', nargs=1, required=False)
+def burst(source, dest):
+    if not dest:
+        dest = source
+    writers = {}
+    fname, ext = os.path.splitext(dest)
+
+    for sentence in sentences_from_source(source):
+        mmsi = sentence['mmsi']
+        if not mmsi:
+            mmsi = 'other'
+        if not mmsi in writers:
+            writers[mmsi] = open( "{}-{}{}".format(fname, mmsi, ext), "wt")
+        print_sentence_source(sentence.text, writers[mmsi])
+
+    for writer in writers.values():
+        writer.close()

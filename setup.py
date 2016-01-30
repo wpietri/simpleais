@@ -12,6 +12,7 @@ setup(name='simpleais',
           'console_scripts': [
               'aisgrep = simpleais.tools:grep',
               'aist = simpleais.tools:as_text',
+              'aisburst = simpleais.tools:burst',
           ],
       },
       )
