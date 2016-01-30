@@ -1,0 +1,16 @@
+import sys
+
+from simpleais import sentences_from_source
+
+
+def print_sentence(text):
+    if isinstance(text, str):
+        print(text)
+    else:
+        for line in text:
+            print(line)
+
+
+for source in sys.argv[1:]:
+    for sentence in sentences_from_source(source):
+        print_sentence(sentence.text)
