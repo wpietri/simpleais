@@ -11,6 +11,7 @@ setup(name='simpleais',
       entry_points={
           'console_scripts': [
               'aisgrep = simpleais.tools:grep',
+              'aist = simpleais.tools:as_text',
           ],
       },
       )
