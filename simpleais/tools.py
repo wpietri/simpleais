@@ -111,40 +111,72 @@ class SenderInfo:
         for field in sorted(self.fields):
             print("  {:11s}: {}".format(field, self.fields[field]))
 
+class MaxMin:
+    def __init__(self, starting=None):
+        self.min = self.max = starting
+
+    def add(self, value):
+        if self.min is None or self.min is None:
+            self.min = self.max = value
+            return
+        if value > self.max:
+            self.max = value
+        if value < self.min:
+            self.min = value
+
+
+class GeoInfo:
+    def __init__(self):
+        self.lat = MaxMin()
+        self.lon = MaxMin()
+
+    def add(self, latitude, longitude):
+        self.lat.add(latitude)
+        self.lon.add(longitude)
+
+    def report(self, indent=""):
+        print("{}    top left: {}, {}".format(indent, self.lat.max, self.lon.min))
+        print("{}bottom right: {}, {}".format(indent, self.lat.min, self.lon.max))
+
 
 class SentencesInfo:
     def __init__(self):
         self.sentence_count = 0
         self.type_counts = defaultdict(int)
         self.sender_counts = defaultdict(int)
+        self.geo_info = GeoInfo()
 
     def add(self, sentence):
         self.sentence_count += 1
         self.type_counts[sentence.type_id()] += 1
         self.sender_counts[sentence['mmsi']] += 1
+        if sentence.type_id() in [1, 2, 3]:
+            self.geo_info.add(sentence['lat'], sentence['lon'])
+
 
     def report(self):
         print("Found {} senders in {} sentences.".format(len(self.sender_counts), self.sentence_count))
-        print()
-        print("type counts:")
+        self.geo_info.report("  ")
+        print("   type counts:")
         for i in sorted(self.type_counts):
-            print("  {:2d}\t{:8d}".format(i, self.type_counts[i]))
+            print("                {:2d} {:8d}".format(i, self.type_counts[i]))
+        print()
 
 
 @click.command()
 @click.argument('sources', nargs=-1)
 @click.option('--individual', '-i', is_flag=True)
 def info(sources, individual):
-    info = SentencesInfo()
-    if individual:
-        sender_info = defaultdict(SenderInfo)
+    sentences_info = SentencesInfo()
+    sender_info = defaultdict(SenderInfo)
 
     for sentence in sentences_from_sources(sources):
-        info.add(sentence)
+        sentences_info.add(sentence)
         if individual:
             sender_info[sentence['mmsi']].add(sentence)
 
-    info.report()
+    sentences_info.report()
+
     if individual:
         for mmsi in sorted(sender_info):
             sender_info[mmsi].report()
