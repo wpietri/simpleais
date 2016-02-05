@@ -28,7 +28,13 @@ def sentences_from_sources(sources):
 @click.command()
 @click.argument('sources', nargs=-1)
 @click.option('--mmsi', '-m', multiple=True)
-def grep(sources, mmsi):
+@click.option('--mmsi-file', '-f')
+def grep(sources, mmsi, mmsi_file = None):
+    if (mmsi_file):
+        mmsi = list(mmsi)
+        with open(mmsi_file, "r") as f:
+            mmsi.extend([l.strip() for l in f.readlines()])
+        mmsi = frozenset(mmsi)
     for sentence in sentences_from_sources(sources):
         if len(mmsi) > 0:
             if sentence['mmsi'] in mmsi:
