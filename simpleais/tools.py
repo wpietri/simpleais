@@ -5,8 +5,6 @@ import click
 
 from . import sentences_from_source
 
-# todo: aisburst
-
 def print_sentence_source(text, file=sys.stdout):
     if isinstance(text, str):
         print(text, file=file)
