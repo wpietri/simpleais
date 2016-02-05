@@ -1,4 +1,5 @@
 from collections import defaultdict
+import functools
 import os
 import sys
 
@@ -29,17 +30,36 @@ def sentences_from_sources(sources):
 @click.argument('sources', nargs=-1)
 @click.option('--mmsi', '-m', multiple=True)
 @click.option('--mmsi-file', '-f')
-def grep(sources, mmsi, mmsi_file=None):
+@click.option('--type', '-t', type=int)
+@click.option('--latitude', '--lat', nargs=2, type=float)
+@click.option('--longitude', '--lon', nargs=2, type=float)
+def grep(sources, mmsi, mmsi_file=None, type=None, lat=None, lon=None):
+    mmsis_shown = set()
     if mmsi_file:
         mmsi = list(mmsi)
         with open(mmsi_file, "r") as f:
             mmsi.extend([l.strip() for l in f.readlines()])
         mmsi = frozenset(mmsi)
     for sentence in sentences_from_sources(sources):
+        factors = [True]
+
         if len(mmsi) > 0:
-            if sentence['mmsi'] in mmsi:
-                print_sentence_source(sentence.text)
-        else:
+            factors.append(sentence['mmsi'] in mmsi)
+        if type:
+            factors.append(sentence.type_id() == type)
+        if lat:
+            if sentence['lat']:
+                factors.append(lat[0] < sentence['lat'] < lat[1])
+            else:
+                factors.append(sentence['mmsi'] in mmsis_shown)
+        if lon:
+            if sentence['lon']:
+                factors.append(lon[0] < sentence['lon'] < lon[1])
+            else:
+                factors.append(sentence['mmsi'] in mmsis_shown)
+
+        if functools.reduce(lambda x, y: x and y, factors):
+            mmsis_shown.add(sentence['mmsi'])
             print_sentence_source(sentence.text)
 
 
@@ -47,7 +67,13 @@ def grep(sources, mmsi, mmsi_file=None):
 @click.argument('sources', nargs=-1)
 def as_text(sources):
     for sentence in sentences_from_sources(sources):
-        print("{} {:2} {:10}".format(sentence.time, sentence.type_id(), str(sentence['mmsi'])))
+        result = ["{} {:2} {:10}".format(sentence.time, sentence.type_id(), str(sentence['mmsi']))]
+        if sentence.type_id() in [1, 2, 3]:
+            result.append("{}x{}".format(sentence['lat'], sentence['lon']))
+        elif sentence.type_id() == 5:
+            result.append("{} {}".format(sentence['shipname'], sentence['destination']))
+
+        print("".join(result))
 
 
 @click.command()
@@ -199,7 +225,7 @@ class DensityMap:
 @click.command()
 @click.argument('sources', nargs=-1)
 @click.option('--individual', '-i', is_flag=True)
-@click.option('--map', '-m', is_flag=True)
+@click.option('--map', '-m', "show_map", is_flag=True)
 def info(sources, individual, show_map):
     sentences_info = SentencesInfo()
     sender_info = defaultdict(SenderInfo)
