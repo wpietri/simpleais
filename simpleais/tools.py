@@ -71,7 +71,7 @@ def burst(source, dest):
         writer.close()
 
 
-class Fields(dict):
+class Fields:
     def __init__(self):
         self.values = {}
 
@@ -105,11 +105,12 @@ class SenderInfo:
 
     def report(self):
         print("{}:".format(self.mmsi))
-        print("   sentences: {}".format(self.sentence_count))
+        print("    sentences: {}".format(self.sentence_count))
         type_text = ["{}: {}".format(t, self.type_counts[t]) for t in (sorted(self.type_counts))]
-        print("       types: {}".format(", ".join(type_text)))
+        print("        types: {}".format(", ".join(type_text)))
         for field in sorted(self.fields):
-            print("  {:11s}: {}".format(field, self.fields[field]))
+            print("  {:>11s}: {}".format(field, self.fields[field]))
+
 
 class MaxMin:
     def __init__(self, starting=None):
@@ -153,29 +154,68 @@ class SentencesInfo:
         if sentence.type_id() in [1, 2, 3]:
             self.geo_info.add(sentence['lat'], sentence['lon'])
 
-
     def report(self):
         print("Found {} senders in {} sentences.".format(len(self.sender_counts), self.sentence_count))
-        self.geo_info.report("  ")
         print("   type counts:")
         for i in sorted(self.type_counts):
             print("                {:2d} {:8d}".format(i, self.type_counts[i]))
         print()
+        self.geo_info.report("  ")
+
+
+class DensityMap:
+    def __init__(self, width=60, height=20):
+        self.width = width
+        self.height = height
+        self.geo_info = GeoInfo()
+        self.points = []
+
+    def add(self, latitude, longitude):
+        self.points.append((latitude, longitude))
+        self.geo_info.add(latitude, longitude)
+
+    def show(self):
+        # noinspection PyUnusedLocal
+        results = [[0 for ignored in range(self.width)] for ignored in range(self.height)]
+        x_scale = (self.geo_info.lon.max - self.geo_info.lon.min) / self.width
+        y_scale = (self.geo_info.lat.max - self.geo_info.lat.min) / self.height
+        for lat, lon in self.points:
+            x = int((lon - self.geo_info.lon.min - 0.001) / x_scale)
+            y = self.height - 1 - int((lat - self.geo_info.lat.min - 0.001) / y_scale)
+            results[y][x] += 1
+        max_count = max([max(l) for l in results])
+
+        def c(col):
+            if col == 0:
+                return " "
+            return str(int(9.999 * col / max_count))
+
+        print("  +{}+".format("-" * self.width))
+        for row in results:
+            print("  |{}|".format("".join([c(col) for col in row])))
+        print("  +{}+".format("-" * self.width))
 
 
 @click.command()
 @click.argument('sources', nargs=-1)
 @click.option('--individual', '-i', is_flag=True)
-def info(sources, individual):
+@click.option('--map', '-m', is_flag=True)
+def info(sources, individual, show_map):
     sentences_info = SentencesInfo()
     sender_info = defaultdict(SenderInfo)
+    map_info = DensityMap()
 
     for sentence in sentences_from_sources(sources):
         sentences_info.add(sentence)
+        if show_map:
+            if sentence['lat']:
+                map_info.add(sentence['lat'], sentence['lon'])
         if individual:
             sender_info[sentence['mmsi']].add(sentence)
 
     sentences_info.report()
+    if show_map:
+        map_info.show()
 
     if individual:
         for mmsi in sorted(sender_info):
