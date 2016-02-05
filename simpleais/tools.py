@@ -71,16 +71,45 @@ def burst(source, dest):
         writer.close()
 
 
+class Fields(dict):
+    def __init__(self):
+        self.values = {}
+
+    def __getitem__(self, key):
+        return self.values[key]
+
+    def __setitem__(self, key, value):
+        value = value.strip()
+        if key and value and len(value) > 0:
+            self.values[key] = value
+
+    def __iter__(self):
+        return self.values.__iter__()
+
+
 class SenderInfo:
-    def __init__(self, mmsi):
-        self.mmsi = mmsi
+    def __init__(self):
+        self.mmsi = None
         self.sentence_count = 0
+        self.type_counts = defaultdict(int)
+        self.fields = Fields()
 
     def add(self, sentence):
+        if not self.mmsi:
+            self.mmsi = sentence['mmsi']
         self.sentence_count += 1
+        self.type_counts[sentence.type_id()] += 1
+        if sentence.type_id() == 5:
+            self.fields['shipname'] = sentence['shipname']
+            self.fields['destination'] = sentence['destination']
 
     def report(self):
-        print(self.mmsi, self.sentence_count)
+        print("{}:".format(self.mmsi))
+        print("   sentences: {}".format(self.sentence_count))
+        type_text = ["{}: {}".format(t, self.type_counts[t]) for t in (sorted(self.type_counts))]
+        print("       types: {}".format(", ".join(type_text)))
+        for field in sorted(self.fields):
+            print("  {:11s}: {}".format(field, self.fields[field]))
 
 
 class SentencesInfo:
@@ -104,8 +133,8 @@ class SentencesInfo:
 
 @click.command()
 @click.argument('sources', nargs=-1)
-@click.option('--individual', '-i')
-def info(sources, individual=False):
+@click.option('--individual', '-i', is_flag=True)
+def info(sources, individual):
     info = SentencesInfo()
     if individual:
         sender_info = defaultdict(SenderInfo)
