@@ -254,16 +254,14 @@ class Sentence:
 
     def __getitem__(self, item):
         bits = self.payload.bits
+        if item == 'mmsi':
+            return self._parse_mmsi(bits[8:38])
         if self.type_id() in [1, 2, 3]:
-            if item == 'mmsi':
-                return self._parse_mmsi(bits[8:38])
             if item == 'lat':
                 return self._parse_latlong(bits[89:116])
             if item == 'lon':
                 return self._parse_latlong(bits[61:89])
         if self.type_id() == 5:
-            if item == 'mmsi':
-                return self._parse_mmsi(bits[8:38])
             if item == 'shipname':
                 return self._parse_text(bits[112:232])
             if item == 'destination':

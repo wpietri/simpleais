@@ -8,3 +8,5 @@ code is quite rough, and so shouldn't be used for anything that matters.
 It especially shouldn't be used for ship navigation.
 
 Contributions welcome.
+
+My main sort for protocol information is here: http://catb.org/gpsd/AIVDM.html

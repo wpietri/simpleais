@@ -13,6 +13,7 @@ setup(name='simpleais',
               'aisgrep = simpleais.tools:grep',
               'aist = simpleais.tools:as_text',
               'aisburst = simpleais.tools:burst',
+              'aisinfo = simpleais.tools:info',
           ],
       },
       )
