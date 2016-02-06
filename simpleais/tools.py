@@ -30,10 +30,10 @@ def sentences_from_sources(sources):
 @click.argument('sources', nargs=-1)
 @click.option('--mmsi', '-m', multiple=True)
 @click.option('--mmsi-file', '-f')
-@click.option('--type', '-t', type=int)
+@click.option('--type', '-t', 'sentence_type', type=int)
 @click.option('--latitude', '--lat', nargs=2, type=float)
-@click.option('--longitude', '--lon', nargs=2, type=float)
-def grep(sources, mmsi, mmsi_file=None, type=None, lat=None, lon=None):
+@click.option('--longitude',  '--long', '--lon', nargs=2, type=float)
+def grep(sources, mmsi, mmsi_file=None, sentence_type=None, lat=None, lon=None):
     if mmsi_file:
         mmsi = list(mmsi)
         with open(mmsi_file, "r") as f:
@@ -44,8 +44,8 @@ def grep(sources, mmsi, mmsi_file=None, type=None, lat=None, lon=None):
 
         if len(mmsi) > 0:
             factors.append(sentence['mmsi'] in mmsi)
-        if type:
-            factors.append(sentence.type_id() == type)
+        if sentence_type:
+            factors.append(sentence.type_id() == sentence_type)
         if lat:
             factors.append(sentence['lat'] and lat[0] < sentence['lat'] < lat[1])
         if lon:
