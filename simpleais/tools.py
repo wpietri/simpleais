@@ -34,7 +34,7 @@ def sentences_from_sources(sources):
 @click.option('--mmsi-file', '-f')
 @click.option('--type', '-t', 'sentence_type', type=int)
 @click.option('--latitude', '--lat', nargs=2, type=float)
-@click.option('--longitude',  '--long', '--lon', nargs=2, type=float)
+@click.option('--longitude', '--long', '--lon', nargs=2, type=float)
 def grep(sources, mmsi, mmsi_file=None, sentence_type=None, lat=None, lon=None):
     if mmsi_file:
         mmsi = list(mmsi)
@@ -139,8 +139,11 @@ class MaxMin:
     def __init__(self, starting=None):
         self.min = self.max = starting
 
+    def valid(self):
+        return self.min is not None and self.min is not None
+
     def add(self, value):
-        if self.min is None or self.min is None:
+        if not self.valid():
             self.min = self.max = value
             return
         if value > self.max:
@@ -161,6 +164,13 @@ class GeoInfo:
     def report(self, indent=""):
         print("{}    top left: {}, {}".format(indent, self.lat.max, self.lon.min))
         print("{}bottom right: {}, {}".format(indent, self.lat.min, self.lon.max))
+
+    def __str__(self, *args, **kwargs):
+        return "GeoInfo(latmin={}, latmax={}, lonmin={}, lonmax={})".format(self.lat.min, self.lat.max,
+                                                                            self.lon.min, self.lon.max)
+
+    def valid(self):
+        return self.lat.valid() and self.lon.valid()
 
 
 class SentencesInfo:
@@ -187,9 +197,10 @@ class SentencesInfo:
 
 
 class DensityMap:
-    def __init__(self, width=60, height=20):
+    def __init__(self, width=60, height=20, indent=""):
         self.width = width
         self.height = height
+        self.indent = indent
         self.geo_info = GeoInfo()
         self.points = []
 
@@ -198,25 +209,31 @@ class DensityMap:
         self.geo_info.add(latitude, longitude)
 
     def show(self):
+        print("\n".join(self.to_text()))
+
+    def to_text(self):
         # noinspection PyUnusedLocal
         results = [[0 for ignored in range(self.width)] for ignored in range(self.height)]
-        x_scale = (self.geo_info.lon.max - self.geo_info.lon.min) / self.width
-        y_scale = (self.geo_info.lat.max - self.geo_info.lat.min) / self.height
-        for lat, lon in self.points:
-            x = int((lon - self.geo_info.lon.min - 0.001) / x_scale)
-            y = self.height - 1 - int((lat - self.geo_info.lat.min - 0.001) / y_scale)
-            results[y][x] += 1
-        max_count = max([max(l) for l in results])
+        if self.geo_info.valid():
+            x_scale = 0.00001+ (self.geo_info.lon.max - self.geo_info.lon.min) / self.width
+            y_scale = 0.00001 + (self.geo_info.lat.max - self.geo_info.lat.min) / self.height
+            for lat, lon in self.points:
+                x = int((lon - self.geo_info.lon.min - 0.00000001) / x_scale)
+                y = self.height - 1 - int((lat - self.geo_info.lat.min - 0.00000001) / y_scale)
+                results[y][x] += 1
+            max_count = max([max(l) for l in results])
 
         def c(col):
             if col == 0:
                 return " "
             return str(int(9.999 * col / max_count))
 
-        print("  +{}+".format("-" * self.width))
+        output = []
+        output.append("{}+{}+".format(self.indent, "-" * self.width))
         for row in results:
-            print("  |{}|".format("".join([c(col) for col in row])))
-        print("  +{}+".format("-" * self.width))
+            output.append("{}|{}|".format(self.indent, "".join([c(col) for col in row])))
+        output.append("{}+{}+".format(self.indent, "-" * self.width))
+        return output
 
 
 @click.command()
@@ -248,7 +265,8 @@ def info(sources, individual, show_map):
 def chunks(l, n):
     """Yield successive n-sized chunks from l."""
     for i in range(0, len(l), n):
-        yield l[i:i+n]
+        yield l[i:i + n]
+
 
 @click.command()
 @click.argument('sources', nargs=-1)
