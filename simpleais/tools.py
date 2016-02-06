@@ -59,13 +59,16 @@ def grep(sources, mmsi, mmsi_file=None, type=None, lat=None, lon=None):
 @click.argument('sources', nargs=-1)
 def as_text(sources):
     for sentence in sentences_from_sources(sources):
-        result = ["{} {:2} {:10}".format(sentence.time, sentence.type_id(), str(sentence['mmsi']))]
-        if sentence.type_id() in [1, 2, 3]:
-            result.append("{}x{}".format(sentence['lat'], sentence['lon']))
+        result = []
+        result.append(sentence.time.strftime("%Y/%m/%d %H:%M:%S"))
+        result.append("{:2}".format(sentence.type_id()))
+        result.append("{:9}".format(str(sentence['mmsi'])))
+        if sentence['lat']:
+            result.append("{:9.4f} {:9.4f}".format(sentence['lat'], sentence['lon']))
         elif sentence.type_id() == 5:
-            result.append("{} {}".format(sentence['shipname'], sentence['destination']))
+            result.append("{}->{}".format(sentence['shipname'], sentence['destination']))
 
-        print("".join(result))
+        print(" ".join(result))
 
 
 @click.command()
