@@ -258,9 +258,9 @@ class Sentence:
             return self._parse_mmsi(bits[8:38])
         if self.type_id() in [1, 2, 3]:
             if item == 'lat':
-                return self._parse_latlong(bits[89:116])
+                return self._parse_lat(bits[89:116])
             if item == 'lon':
-                return self._parse_latlong(bits[61:89])
+                return self._parse_lon(bits[61:89])
         if self.type_id() == 5:
             if item == 'shipname':
                 return self._parse_text(bits[112:232])
@@ -269,6 +269,16 @@ class Sentence:
 
     def _parse_mmsi(self, bits):
         return "%09i" % int(bits)
+
+    def _parse_lat(self,bits):
+        result = self._parse_latlong(bits)
+        if result != 91.0:
+            return result
+
+    def _parse_lon(self,bits):
+        result = self._parse_latlong(bits)
+        if result != 181.0:
+            return result
 
     def _parse_latlong(self, bits):
         def twos_comp(val, length):

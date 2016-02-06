@@ -1,6 +1,5 @@
 from unittest import TestCase
 
-from simpleais import *
 import simpleais
 
 
@@ -41,3 +40,9 @@ class TestPositionReports(TestCase):
         self.assertEqual('367678850', m['mmsi'])
         self.assertAlmostEquals(33.7302, m['lat'])
         self.assertAlmostEquals(-118.2634, m['lon'])
+
+    def test_no_lat_or_lon(self):
+        m = simpleais.parse('!ABVDM,1,1,,A,152MQ1qP?w<tSF0l4Q@>4?wp1p7G,0*78')
+        self.assertEqual('338125063', m['mmsi'])
+        self.assertIsNone(m['lat'])
+        self.assertIsNone(m['lon'])

@@ -34,7 +34,6 @@ def sentences_from_sources(sources):
 @click.option('--latitude', '--lat', nargs=2, type=float)
 @click.option('--longitude', '--lon', nargs=2, type=float)
 def grep(sources, mmsi, mmsi_file=None, type=None, lat=None, lon=None):
-    mmsis_shown = set()
     if mmsi_file:
         mmsi = list(mmsi)
         with open(mmsi_file, "r") as f:
@@ -48,18 +47,11 @@ def grep(sources, mmsi, mmsi_file=None, type=None, lat=None, lon=None):
         if type:
             factors.append(sentence.type_id() == type)
         if lat:
-            if sentence['lat']:
-                factors.append(lat[0] < sentence['lat'] < lat[1])
-            else:
-                factors.append(sentence['mmsi'] in mmsis_shown)
+            factors.append(sentence['lat'] and lat[0] < sentence['lat'] < lat[1])
         if lon:
-            if sentence['lon']:
-                factors.append(lon[0] < sentence['lon'] < lon[1])
-            else:
-                factors.append(sentence['mmsi'] in mmsis_shown)
+            factors.append(sentence['lon'] and lon[0] < sentence['lon'] < lon[1])
 
         if functools.reduce(lambda x, y: x and y, factors):
-            mmsis_shown.add(sentence['mmsi'])
             print_sentence_source(sentence.text)
 
 
@@ -177,7 +169,7 @@ class SentencesInfo:
         self.sentence_count += 1
         self.type_counts[sentence.type_id()] += 1
         self.sender_counts[sentence['mmsi']] += 1
-        if sentence.type_id() in [1, 2, 3]:
+        if sentence['lat']:
             self.geo_info.add(sentence['lat'], sentence['lon'])
 
     def report(self):
