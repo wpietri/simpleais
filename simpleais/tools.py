@@ -7,6 +7,8 @@ import click
 
 from . import sentences_from_source
 
+TIME_FORMAT = "%Y/%m/%d %H:%M:%S"
+
 
 def print_sentence_source(text, file=sys.stdout):
     if isinstance(text, str):
@@ -60,7 +62,7 @@ def grep(sources, mmsi, mmsi_file=None, sentence_type=None, lat=None, lon=None):
 def as_text(sources):
     for sentence in sentences_from_sources(sources):
         result = []
-        result.append(sentence.time.strftime("%Y/%m/%d %H:%M:%S"))
+        result.append(sentence.time.strftime(TIME_FORMAT))
         result.append("{:2}".format(sentence.type_id()))
         result.append("{:9}".format(str(sentence['mmsi'])))
         if sentence['lat']:
@@ -241,3 +243,28 @@ def info(sources, individual, show_map):
     if individual:
         for mmsi in sorted(sender_info):
             sender_info[mmsi].report()
+
+
+def chunks(l, n):
+    """Yield successive n-sized chunks from l."""
+    for i in range(0, len(l), n):
+        yield l[i:i+n]
+
+@click.command()
+@click.argument('sources', nargs=-1)
+def dump(sources):
+    sentence_count = 0
+    for sentence in sentences_from_sources(sources):
+        if sentence_count != 0:
+            print()
+        sentence_count += 1
+        print("Sentence {}:".format(sentence_count))
+        if sentence.time:
+            print("  time: {}".format(sentence.time.strftime(TIME_FORMAT)))
+        print("  type: {}".format(sentence.type_id()))
+        print("  MMSI: {}".format(sentence['mmsi']))
+        bit_lumps = list(chunks(str(sentence.message_bits()), 6))
+        groups = chunks(bit_lumps, 10)
+        print("  bits: {}".format(" ".join(groups.__next__())))
+        for group in groups:
+            print("        {}".format(" ".join(group)))

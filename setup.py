@@ -14,6 +14,7 @@ setup(name='simpleais',
               'aist = simpleais.tools:as_text',
               'aisburst = simpleais.tools:burst',
               'aisinfo = simpleais.tools:info',
+              'aisdump = simpleais.tools:dump',
           ],
       },
       )
