@@ -231,7 +231,7 @@ class SentenceFragment:
 
 
 class Sentence:
-    def __init__(self, talker, sentence_type, radio_channel,  payload, time=None, text=None):
+    def __init__(self, talker, sentence_type, radio_channel, payload, time=None, text=None):
         self.talker = talker
         self.sentence_type = sentence_type
         self.radio_channel = radio_channel
@@ -250,7 +250,8 @@ class Sentence:
         first = matching_fragments[0]
         message_bits = reduce(lambda a, b: a + b, [f.bits() for f in matching_fragments])
         text = [f.text for f in matching_fragments]
-        return Sentence(first.talker, first.sentence_type, first.radio_channel, NmeaPayload(message_bits), first.time, text)
+        return Sentence(first.talker, first.sentence_type, first.radio_channel, NmeaPayload(message_bits), first.time,
+                        text)
 
     def __getitem__(self, item):
         bits = self.payload.bits
@@ -270,12 +271,12 @@ class Sentence:
     def _parse_mmsi(self, bits):
         return "%09i" % int(bits)
 
-    def _parse_lat(self,bits):
+    def _parse_lat(self, bits):
         result = self._parse_latlong(bits)
         if result != 91.0:
             return result
 
-    def _parse_lon(self,bits):
+    def _parse_lon(self, bits):
         result = self._parse_latlong(bits)
         if result != 181.0:
             return result

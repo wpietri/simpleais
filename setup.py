@@ -7,7 +7,7 @@ setup(name='simpleais',
       author='William Pietri',
       license='Apache 2.0',
       packages=find_packages(),
-      install_requires=['bitstring', 'testfixtures', 'Click'],
+      install_requires=['bitstring', 'testfixtures', 'Click', 'numpy'],
       entry_points={
           'console_scripts': [
               'aisgrep = simpleais.tools:grep',

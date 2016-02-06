@@ -4,6 +4,7 @@ import os
 import sys
 
 import click
+import numpy
 
 from . import sentences_from_source
 
@@ -196,6 +197,31 @@ class SentencesInfo:
         self.geo_info.report("  ")
 
 
+class Bucketer:
+    """Given min, max, and buckets, buckets values"""
+
+    def __init__(self, min_val, max_val, buckets):
+        self.min_val = min_val
+        self.max_val = max_val
+        self.buckets = buckets
+        epsilon = sys.float_info.epsilon
+        if self.min_val == self.max_val:
+            self.bins = numpy.linspace(min_val - 1, max_val + 1 + epsilon, buckets + 1)
+        else:
+            self.bins = numpy.linspace(min_val, max_val + epsilon, buckets + 1)
+
+    def bucket(self, value):
+        result = numpy.digitize(value, self.bins) - 1
+        if result < 0:
+            return 0
+        if result > self.buckets - 1:
+            return self.buckets - 1
+        return result
+
+    def __str__(self, *args, **kwargs):
+        return "Bucketer({}, {}, {}, {})".format(self.min_val, self.max_val, self.buckets, self.bins)
+
+
 class DensityMap:
     def __init__(self, width=60, height=20, indent=""):
         self.width = width
@@ -215,11 +241,11 @@ class DensityMap:
         # noinspection PyUnusedLocal
         results = [[0 for ignored in range(self.width)] for ignored in range(self.height)]
         if self.geo_info.valid():
-            x_scale = 0.00001+ (self.geo_info.lon.max - self.geo_info.lon.min) / self.width
-            y_scale = 0.00001 + (self.geo_info.lat.max - self.geo_info.lat.min) / self.height
+            xb = Bucketer(self.geo_info.lon.min, self.geo_info.lon.max, self.width)
+            yb = Bucketer(self.geo_info.lat.min, self.geo_info.lat.max, self.height)
             for lat, lon in self.points:
-                x = int((lon - self.geo_info.lon.min - 0.00000001) / x_scale)
-                y = self.height - 1 - int((lat - self.geo_info.lat.min - 0.00000001) / y_scale)
+                x = xb.bucket(lon)
+                y = self.height - 1 - yb.bucket(lat)
                 results[y][x] += 1
             max_count = max([max(l) for l in results])
 
