@@ -204,6 +204,7 @@ class Bucketer:
         self.min_val = min_val
         self.max_val = max_val
         self.bucket_count = bucket_count
+        self.max_buckets = bucket_count - 1
         if self.min_val == self.max_val:
             self.bins = numpy.linspace(min_val - 1, max_val + 1, bucket_count + 1)
         else:
@@ -211,10 +212,10 @@ class Bucketer:
 
     def bucket(self, value):
         result = numpy.digitize(value, self.bins) - 1
-        if result < 0:
-            return 0
-        if result > self.bucket_count - 1:
-            return self.bucket_count - 1
+
+        # this shouldn't be necessary, but it somehow is
+        if result > self.max_buckets:
+            return self.max_buckets
         return result
 
     def __str__(self, *args, **kwargs):
@@ -233,10 +234,7 @@ class DensityMap:
         self.points.append((latitude, longitude))
         self.geo_info.add(latitude, longitude)
 
-    def show(self):
-        print("\n".join(self.to_text()))
-
-    def to_text(self):
+    def to_counts(self):
         # noinspection PyUnusedLocal
         results = [[0 for ignored in range(self.width)] for ignored in range(self.height)]
         if self.geo_info.valid():
@@ -246,19 +244,27 @@ class DensityMap:
                 x = xb.bucket(lon)
                 y = self.height - 1 - yb.bucket(lat)
                 results[y][x] += 1
-            max_count = max([max(l) for l in results])
+        return results
 
-        def c(col):
-            if col == 0:
+    def to_text(self):
+        counts = self.to_counts()
+
+        max_count = max([max(l) for l in counts])
+
+        def value_to_text(value):
+            if value == 0:
                 return " "
-            return str(int(9.999 * col / max_count))
+            return str(int((9.99999) * value / max_count))
 
         output = []
         output.append("{}+{}+".format(self.indent, "-" * self.width))
-        for row in results:
-            output.append("{}|{}|".format(self.indent, "".join([c(col) for col in row])))
+        for row in counts:
+            output.append("{}|{}|".format(self.indent, "".join([value_to_text(col) for col in row])))
         output.append("{}+{}+".format(self.indent, "-" * self.width))
         return output
+
+    def show(self):
+        print("\n".join(self.to_text()))
 
 
 @click.command()
