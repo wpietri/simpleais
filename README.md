@@ -10,3 +10,5 @@ It especially shouldn't be used for ship navigation.
 Contributions welcome.
 
 My main sort for protocol information is here: http://catb.org/gpsd/AIVDM.html
+
+The protocol checksum is here: https://en.wikipedia.org/wiki/NMEA_0183

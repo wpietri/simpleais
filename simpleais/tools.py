@@ -7,6 +7,8 @@ import click
 import numpy
 
 from . import sentences_from_source
+import re
+
 
 TIME_FORMAT = "%Y/%m/%d %H:%M:%S"
 
@@ -299,6 +301,19 @@ def chunks(l, n):
         yield l[i:i + n]
 
 
+PAT = re.compile("!(A.*)\*(..)")
+# based on https://en.wikipedia.org/wiki/NMEA_0183
+def checksum_check(fragment_text):
+    m = PAT.search(fragment_text)
+    calculated = hex(functools.reduce(lambda a,b: a^b, [ord(c) for c in m.group(1)]))[2:4]
+    return m.group(2) == calculated.upper()
+
+def checksum_checks(sentence):
+    if isinstance(sentence.text, str):
+        return [checksum_check(sentence.text)]
+    else:
+        return [checksum_check(t) for t in sentence.text]
+
 @click.command()
 @click.argument('sources', nargs=-1)
 def dump(sources):
@@ -309,11 +324,12 @@ def dump(sources):
         sentence_count += 1
         print("Sentence {}:".format(sentence_count))
         if sentence.time:
-            print("  time: {}".format(sentence.time.strftime(TIME_FORMAT)))
-        print("  type: {}".format(sentence.type_id()))
-        print("  MMSI: {}".format(sentence['mmsi']))
+            print("   time: {}".format(sentence.time.strftime(TIME_FORMAT)))
+        print("   type: {}".format(sentence.type_id()))
+        print("   MMSI: {}".format(sentence['mmsi']))
         bit_lumps = list(chunks(str(sentence.message_bits()), 6))
         groups = chunks(bit_lumps, 10)
-        print("  bits: {}".format(" ".join(groups.__next__())))
+        print("  check: {}".format(", ".join([str(c) for c in checksum_checks(sentence)])))
+        print("   bits: {}".format(" ".join(groups.__next__())))
         for group in groups:
-            print("        {}".format(" ".join(group)))
+            print("         {}".format(" ".join(group)))
