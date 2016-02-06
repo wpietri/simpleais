@@ -200,26 +200,25 @@ class SentencesInfo:
 class Bucketer:
     """Given min, max, and buckets, buckets values"""
 
-    def __init__(self, min_val, max_val, buckets):
+    def __init__(self, min_val, max_val, bucket_count):
         self.min_val = min_val
         self.max_val = max_val
-        self.buckets = buckets
-        epsilon = sys.float_info.epsilon
+        self.bucket_count = bucket_count
         if self.min_val == self.max_val:
-            self.bins = numpy.linspace(min_val - 1, max_val + 1 + epsilon, buckets + 1)
+            self.bins = numpy.linspace(min_val - 1, max_val + 1, bucket_count + 1)
         else:
-            self.bins = numpy.linspace(min_val, max_val + epsilon, buckets + 1)
+            self.bins = numpy.linspace(min_val, max_val + sys.float_info.epsilon, bucket_count + 1)
 
     def bucket(self, value):
         result = numpy.digitize(value, self.bins) - 1
         if result < 0:
             return 0
-        if result > self.buckets - 1:
-            return self.buckets - 1
+        if result > self.bucket_count - 1:
+            return self.bucket_count - 1
         return result
 
     def __str__(self, *args, **kwargs):
-        return "Bucketer({}, {}, {}, {})".format(self.min_val, self.max_val, self.buckets, self.bins)
+        return "Bucketer({}, {}, {}, {})".format(self.min_val, self.max_val, self.bucket_count, self.bins)
 
 
 class DensityMap:
