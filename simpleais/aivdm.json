@@ -1,0 +1,499 @@
+{
+  "message types": {
+    "1": {
+      "name": "Common Navigation Block",
+      "fields": [
+        {
+          "field": "0-5",
+          "len": 6,
+          "description": "Message Type",
+          "member": "type",
+          "t": "u",
+          "units": "Constant: 1-3",
+          "start": 0,
+          "end": 5
+        },
+        {
+          "field": "6-7",
+          "len": 2,
+          "description": "Repeat Indicator",
+          "member": "repeat",
+          "t": "u",
+          "units": "Message repeat count",
+          "start": 6,
+          "end": 7
+        },
+        {
+          "field": "8-37",
+          "len": 30,
+          "description": "MMSI",
+          "member": "mmsi",
+          "t": "u",
+          "units": "9 decimal digits",
+          "start": 8,
+          "end": 37
+        },
+        {
+          "field": "38-41",
+          "len": 4,
+          "description": "Navigation Status",
+          "member": "status",
+          "t": "e",
+          "units": "See \"Navigation Status\"",
+          "start": 38,
+          "end": 41
+        },
+        {
+          "field": "42-49",
+          "len": 8,
+          "description": "Rate of Turn (ROT)",
+          "member": "turn",
+          "t": "I3",
+          "units": "See below",
+          "start": 42,
+          "end": 49
+        },
+        {
+          "field": "50-59",
+          "len": 10,
+          "description": "Speed Over Ground (SOG)",
+          "member": "speed",
+          "t": "U1",
+          "units": "See below",
+          "start": 50,
+          "end": 59
+        },
+        {
+          "field": "60-60",
+          "len": 1,
+          "description": "Position Accuracy",
+          "member": "accuracy",
+          "t": "b",
+          "units": "See below",
+          "start": 60,
+          "end": 60
+        },
+        {
+          "field": "61-88",
+          "len": 28,
+          "description": "Longitude",
+          "member": "lon",
+          "t": "I4",
+          "units": "Minutes/10000 (see below)",
+          "start": 61,
+          "end": 88
+        },
+        {
+          "field": "89-115",
+          "len": 27,
+          "description": "Latitude",
+          "member": "lat",
+          "t": "I4",
+          "units": "Minutes/10000 (see below)",
+          "start": 89,
+          "end": 115
+        },
+        {
+          "field": "116-127",
+          "len": 12,
+          "description": "Course Over Ground (COG)",
+          "member": "course",
+          "t": "U1",
+          "units": "Relative to true north,\n                                                     to 0.1 degree precision",
+          "start": 116,
+          "end": 127
+        },
+        {
+          "field": "128-136",
+          "len": 9,
+          "description": "True Heading (HDG)",
+          "member": "heading",
+          "t": "u",
+          "units": "0 to 359 degrees,\n                                                      511 = not available.",
+          "start": 128,
+          "end": 136
+        },
+        {
+          "field": "137-142",
+          "len": 6,
+          "description": "Time Stamp",
+          "member": "second",
+          "t": "u",
+          "units": "Second of UTC timestamp",
+          "start": 137,
+          "end": 142
+        },
+        {
+          "field": "143-144",
+          "len": 2,
+          "description": "Maneuver Indicator",
+          "member": "maneuver",
+          "t": "e",
+          "units": "See \"Maneuver Indicator\"",
+          "start": 143,
+          "end": 144
+        },
+        {
+          "field": "145-147",
+          "len": 3,
+          "description": "Spare",
+          "member": "",
+          "t": "x",
+          "units": "Not used",
+          "start": 145,
+          "end": 147
+        },
+        {
+          "field": "148-148",
+          "len": 1,
+          "description": "RAIM flag",
+          "member": "raim",
+          "t": "b",
+          "units": "See below",
+          "start": 148,
+          "end": 148
+        },
+        {
+          "field": "149-167",
+          "len": 19,
+          "description": "Radio status",
+          "member": "radio",
+          "t": "u",
+          "units": "See below",
+          "start": 149,
+          "end": 167
+        }
+      ]
+    },
+    "2": {
+      "name": "Common Navigation Block",
+      "fields": [
+        {
+          "field": "0-5",
+          "len": 6,
+          "description": "Message Type",
+          "member": "type",
+          "t": "u",
+          "units": "Constant: 1-3",
+          "start": 0,
+          "end": 5
+        },
+        {
+          "field": "6-7",
+          "len": 2,
+          "description": "Repeat Indicator",
+          "member": "repeat",
+          "t": "u",
+          "units": "Message repeat count",
+          "start": 6,
+          "end": 7
+        },
+        {
+          "field": "8-37",
+          "len": 30,
+          "description": "MMSI",
+          "member": "mmsi",
+          "t": "u",
+          "units": "9 decimal digits",
+          "start": 8,
+          "end": 37
+        },
+        {
+          "field": "38-41",
+          "len": 4,
+          "description": "Navigation Status",
+          "member": "status",
+          "t": "e",
+          "units": "See \"Navigation Status\"",
+          "start": 38,
+          "end": 41
+        },
+        {
+          "field": "42-49",
+          "len": 8,
+          "description": "Rate of Turn (ROT)",
+          "member": "turn",
+          "t": "I3",
+          "units": "See below",
+          "start": 42,
+          "end": 49
+        },
+        {
+          "field": "50-59",
+          "len": 10,
+          "description": "Speed Over Ground (SOG)",
+          "member": "speed",
+          "t": "U1",
+          "units": "See below",
+          "start": 50,
+          "end": 59
+        },
+        {
+          "field": "60-60",
+          "len": 1,
+          "description": "Position Accuracy",
+          "member": "accuracy",
+          "t": "b",
+          "units": "See below",
+          "start": 60,
+          "end": 60
+        },
+        {
+          "field": "61-88",
+          "len": 28,
+          "description": "Longitude",
+          "member": "lon",
+          "t": "I4",
+          "units": "Minutes/10000 (see below)",
+          "start": 61,
+          "end": 88
+        },
+        {
+          "field": "89-115",
+          "len": 27,
+          "description": "Latitude",
+          "member": "lat",
+          "t": "I4",
+          "units": "Minutes/10000 (see below)",
+          "start": 89,
+          "end": 115
+        },
+        {
+          "field": "116-127",
+          "len": 12,
+          "description": "Course Over Ground (COG)",
+          "member": "course",
+          "t": "U1",
+          "units": "Relative to true north,\n                                                     to 0.1 degree precision",
+          "start": 116,
+          "end": 127
+        },
+        {
+          "field": "128-136",
+          "len": 9,
+          "description": "True Heading (HDG)",
+          "member": "heading",
+          "t": "u",
+          "units": "0 to 359 degrees,\n                                                      511 = not available.",
+          "start": 128,
+          "end": 136
+        },
+        {
+          "field": "137-142",
+          "len": 6,
+          "description": "Time Stamp",
+          "member": "second",
+          "t": "u",
+          "units": "Second of UTC timestamp",
+          "start": 137,
+          "end": 142
+        },
+        {
+          "field": "143-144",
+          "len": 2,
+          "description": "Maneuver Indicator",
+          "member": "maneuver",
+          "t": "e",
+          "units": "See \"Maneuver Indicator\"",
+          "start": 143,
+          "end": 144
+        },
+        {
+          "field": "145-147",
+          "len": 3,
+          "description": "Spare",
+          "member": "",
+          "t": "x",
+          "units": "Not used",
+          "start": 145,
+          "end": 147
+        },
+        {
+          "field": "148-148",
+          "len": 1,
+          "description": "RAIM flag",
+          "member": "raim",
+          "t": "b",
+          "units": "See below",
+          "start": 148,
+          "end": 148
+        },
+        {
+          "field": "149-167",
+          "len": 19,
+          "description": "Radio status",
+          "member": "radio",
+          "t": "u",
+          "units": "See below",
+          "start": 149,
+          "end": 167
+        }
+      ]
+    },
+    "3": {
+      "name": "Common Navigation Block",
+      "fields": [
+        {
+          "field": "0-5",
+          "len": 6,
+          "description": "Message Type",
+          "member": "type",
+          "t": "u",
+          "units": "Constant: 1-3",
+          "start": 0,
+          "end": 5
+        },
+        {
+          "field": "6-7",
+          "len": 2,
+          "description": "Repeat Indicator",
+          "member": "repeat",
+          "t": "u",
+          "units": "Message repeat count",
+          "start": 6,
+          "end": 7
+        },
+        {
+          "field": "8-37",
+          "len": 30,
+          "description": "MMSI",
+          "member": "mmsi",
+          "t": "u",
+          "units": "9 decimal digits",
+          "start": 8,
+          "end": 37
+        },
+        {
+          "field": "38-41",
+          "len": 4,
+          "description": "Navigation Status",
+          "member": "status",
+          "t": "e",
+          "units": "See \"Navigation Status\"",
+          "start": 38,
+          "end": 41
+        },
+        {
+          "field": "42-49",
+          "len": 8,
+          "description": "Rate of Turn (ROT)",
+          "member": "turn",
+          "t": "I3",
+          "units": "See below",
+          "start": 42,
+          "end": 49
+        },
+        {
+          "field": "50-59",
+          "len": 10,
+          "description": "Speed Over Ground (SOG)",
+          "member": "speed",
+          "t": "U1",
+          "units": "See below",
+          "start": 50,
+          "end": 59
+        },
+        {
+          "field": "60-60",
+          "len": 1,
+          "description": "Position Accuracy",
+          "member": "accuracy",
+          "t": "b",
+          "units": "See below",
+          "start": 60,
+          "end": 60
+        },
+        {
+          "field": "61-88",
+          "len": 28,
+          "description": "Longitude",
+          "member": "lon",
+          "t": "I4",
+          "units": "Minutes/10000 (see below)",
+          "start": 61,
+          "end": 88
+        },
+        {
+          "field": "89-115",
+          "len": 27,
+          "description": "Latitude",
+          "member": "lat",
+          "t": "I4",
+          "units": "Minutes/10000 (see below)",
+          "start": 89,
+          "end": 115
+        },
+        {
+          "field": "116-127",
+          "len": 12,
+          "description": "Course Over Ground (COG)",
+          "member": "course",
+          "t": "U1",
+          "units": "Relative to true north,\n                                                     to 0.1 degree precision",
+          "start": 116,
+          "end": 127
+        },
+        {
+          "field": "128-136",
+          "len": 9,
+          "description": "True Heading (HDG)",
+          "member": "heading",
+          "t": "u",
+          "units": "0 to 359 degrees,\n                                                      511 = not available.",
+          "start": 128,
+          "end": 136
+        },
+        {
+          "field": "137-142",
+          "len": 6,
+          "description": "Time Stamp",
+          "member": "second",
+          "t": "u",
+          "units": "Second of UTC timestamp",
+          "start": 137,
+          "end": 142
+        },
+        {
+          "field": "143-144",
+          "len": 2,
+          "description": "Maneuver Indicator",
+          "member": "maneuver",
+          "t": "e",
+          "units": "See \"Maneuver Indicator\"",
+          "start": 143,
+          "end": 144
+        },
+        {
+          "field": "145-147",
+          "len": 3,
+          "description": "Spare",
+          "member": "",
+          "t": "x",
+          "units": "Not used",
+          "start": 145,
+          "end": 147
+        },
+        {
+          "field": "148-148",
+          "len": 1,
+          "description": "RAIM flag",
+          "member": "raim",
+          "t": "b",
+          "units": "See below",
+          "start": 148,
+          "end": 148
+        },
+        {
+          "field": "149-167",
+          "len": 19,
+          "description": "Radio status",
+          "member": "radio",
+          "t": "u",
+          "units": "See below",
+          "start": 149,
+          "end": 167
+        }
+      ]
+    }
+  }
+}

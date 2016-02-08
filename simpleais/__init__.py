@@ -1,7 +1,9 @@
 import collections
 from functools import reduce
 from io import TextIOBase
+import json
 import logging
+import os
 import re
 from time import sleep
 from datetime import datetime
@@ -200,6 +202,82 @@ class NmeaPayload:
         return len(self.bits)
 
 
+message_type_json = json.loads(open(os.path.join(os.path.dirname(__file__), 'aivdm.json')).read())['message types']
+
+
+class Field:
+    def __init__(self, name, start, end, data_type):
+        self.name = name
+        self.bit_range = slice(start, end + 1)
+        if name == 'mmsi':
+            self._decode = self._parse_mmsi
+        elif name == 'lat':
+            self._decode = self._parse_lat
+        elif name == 'lon':
+            self._decode = self._parse_lon
+        elif data_type == 'I3':
+            self._decode = lambda b: self._scaled_integer(b, 3)
+        elif data_type == 'I4':
+            self._decode = lambda b: self._scaled_integer(b, 4)
+        elif data_type == 'u':
+            self._decode = lambda b: int(b)
+        elif data_type == 'U1':
+            self._decode = lambda b: int(b) / 10.0
+        elif data_type == 'e':
+            self._decode = lambda b: "name {}".format(int(b))  # TODO: find and include enumerated types
+        elif data_type == 'b':
+            self._decode = lambda b: b == 1
+        elif data_type == 'x':
+            self._decode = lambda b: "ignored({})".format(int(b))
+        else:
+            raise ValueError("Sorry, don't know how to parse {} for field {} yet".format(data_type, name))
+
+    def decode(self, bits):
+        return self._decode(bits[self.bit_range])
+
+    def _parse_mmsi(self, bits):
+        return "%09i" % int(bits)
+
+    def _parse_lat(self, bits):
+        result = self._scaled_integer(bits, 4)
+        if result != 91.0:
+            return result
+
+    def _parse_lon(self, bits):
+        result = self._scaled_integer(bits, 4)
+        if result != 181.0:
+            return result
+
+    def _twos_comp(self, val, length):
+        if (val & (1 << (length - 1))) != 0:  # if sign bit is set e.g., 8bit: 128-255
+            val = val - (1 << length)  # compute negative value
+        return val
+
+    def _scaled_integer(self, bits, scale):
+        out = self._twos_comp(int(bits), len(bits))
+        result = float(("%." + str(scale) + "f") % (out / 60.0 / (10 ** scale)))
+        return result
+
+
+class Decoder:
+    def __init__(self, s):
+        self.fields = {}
+        for field in s['fields']:
+            name = field['member']
+            self.fields[name] = Field(name, field['start'], field['end'], field['t'])
+
+    def bit_range(self, name):
+        return self.fields[name].bit_range
+
+    def decode(self, name, bits):
+        return self.fields[name].decode(bits)
+
+
+DECODERS = {}
+for message_type_id in range(1, 4):
+    DECODERS[message_type_id] = Decoder(message_type_json[str(message_type_id)])
+
+
 class SentenceFragment:
     def __init__(self, talker, sentence_type, total_fragments, fragment_number, message_id, radio_channel, payload,
                  time=None, text=None):
@@ -255,14 +333,17 @@ class Sentence:
 
     def __getitem__(self, item):
         bits = self.payload.bits
-        if item == 'mmsi':
-            return self._parse_mmsi(bits[8:38])
+        # if item == 'mmsi':
+        #     return self._parse_mmsi(bits[8:38])
         if self.type_id() in [1, 2, 3]:
-            if item == 'lat':
-                return self._parse_lat(bits[89:116])
-            if item == 'lon':
-                return self._parse_lon(bits[61:89])
+            return DECODERS[self.type_id()].decode(item, bits)
+            # if item == 'lat':
+            #     return self._parse_lat(bits[89:116])
+            # if item == 'lon':
+            #     return self._parse_lon(bits[61:89])
         if self.type_id() == 5:
+            if item == 'mmsi':
+                return self._parse_mmsi(bits[8:38])
             if item == 'shipname':
                 return self._parse_text(bits[112:232])
             if item == 'destination':
