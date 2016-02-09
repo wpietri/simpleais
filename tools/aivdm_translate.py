@@ -80,7 +80,7 @@ for h3 in soup.find_all('h3'):
         messages["1"] = message_info_for_table(cnb_table, message_types[0][1])
         messages["2"] = message_info_for_table(cnb_table, message_types[1][1])
         messages["3"] = message_info_for_table(cnb_table, message_types[2][1])
-    match = re.search('Type (\d+):\s*(.*)', h3.text)
+    match = re.search('Type (\d+):?\s+(.*)', h3.text)
     if match:
         messages[match.group(1)] = message_info_for_table(Table(h3.find_next('table')), match.group(2))
 

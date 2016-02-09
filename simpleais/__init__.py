@@ -219,6 +219,8 @@ class Field:
             self._decode = self._parse_text
         elif data_type == 'I3':
             self._decode = lambda b: self._scaled_integer(b, 3)
+        elif data_type == 'I1':
+            self._decode = lambda b: self._scaled_integer(b, 1)
         elif data_type == 'I4':
             self._decode = lambda b: self._scaled_integer(b, 4)
         elif data_type == 'u':
@@ -290,7 +292,7 @@ class Decoder:
 
 
 DECODERS = {}
-for message_type_id in range(1, 20):
+for message_type_id in range(1, 28):
     DECODERS[message_type_id] = Decoder(message_type_json[str(message_type_id)])
 
 
