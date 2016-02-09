@@ -18,9 +18,10 @@ class ProtocolTable
     validate_headers
   end
 
+  EXPECTED_HEADERS = %w(Field Len Description Member T Units)
+
   def validate_headers
-    expected = %w(Field Len Description Member T Units)
-    expected.zip(@headers).each do |expected, actual|
+    EXPECTED_HEADERS.zip(@headers).each do |expected, actual|
       raise "suspicious headers for #{@title}: #{expected} != #{actual}" unless expected==actual
     end
   end
@@ -28,7 +29,7 @@ class ProtocolTable
   def fields_as_structure
     rows.map do |row|
       result = Hash[@headers.zip(row).map { |key, value| [key.downcase, value] }]
-      s,e = row[0].split('-')
+      s, e = row[0].split('-')
       result['start'] = s.to_i
       result['end'] = e.to_i
       result['len'] = result['len'].to_i
@@ -39,13 +40,51 @@ class ProtocolTable
   def as_structure
     {
         name: @title,
-        fields: fields_as_structure
+        messages: fields_as_structure
     }
 
   end
 end
 
+
+def find_doc_tables(block, default_title=nil)
+  result = []
+  if block.blocks?
+    if block.title =~ /Type 7/
+      puts("#{block.level} #{block.title}")
+    end
+    if block.render =~ /Type 7: Binary Acknowledge/
+      puts ("-----foo-----")
+      puts("#{block.level} #{block.render}")
+      puts ("-----foo-----")
+    end
+    block.blocks.each do |child|
+      if child.is_a? Asciidoctor::Table
+        result << child
+      end
+      if child.blocks?
+        result.concat(find_doc_tables(child))
+      end
+    end
+  end
+  result
+end
+
 doc = Asciidoctor.load(File.new('AIVDM.txt'))
+doc_tables = find_doc_tables(doc)
+doc_tables.each do |t|
+  title = t.title
+  if not title
+    if t.level == 2
+      title = t.parent.title
+    else
+      title == t.parent.parent.title
+    end
+  end
+  # puts("#{t.level}\t#{title}\t#{t.title}\t#{t.parent.title}")
+  # puts t.title
+end
+exit 0
 
 sec = doc.blocks.last.blocks[18]
 
