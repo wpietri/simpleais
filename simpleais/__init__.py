@@ -215,6 +215,8 @@ class Field:
             self._decode = self._parse_lat
         elif name == 'lon':
             self._decode = self._parse_lon
+        elif data_type == 't':
+            self._decode = self._parse_text
         elif data_type == 'I3':
             self._decode = lambda b: self._scaled_integer(b, 3)
         elif data_type == 'I4':
@@ -258,6 +260,18 @@ class Field:
         result = float(("%." + str(scale) + "f") % (out / 60.0 / (10 ** scale)))
         return result
 
+    def _parse_text(self, bits):
+        def chunks(s, n):
+            for i in range(0, len(s), n):
+                yield s[i:i + n]
+
+        raw_ints = [int(nibble) for nibble in chunks(bits, 6)]
+        mapped_ints = [i if i > 31 else i + 64 for i in raw_ints]
+        text = ''.join([chr(i) for i in mapped_ints]).strip()
+        text = text.rstrip('@').strip()
+        return text
+
+
 
 class Decoder:
     def __init__(self, message_info):
@@ -274,7 +288,7 @@ class Decoder:
 
 
 DECODERS = {}
-for message_type_id in range(1, 4):
+for message_type_id in range(1, 6):
     DECODERS[message_type_id] = Decoder(message_type_json[str(message_type_id)])
 
 
@@ -332,22 +346,7 @@ class Sentence:
                         text)
 
     def __getitem__(self, item):
-        bits = self.payload.bits
-        # if item == 'mmsi':
-        #     return self._parse_mmsi(bits[8:38])
-        if self.type_id() in [1, 2, 3]:
-            return DECODERS[self.type_id()].decode(item, bits)
-            # if item == 'lat':
-            #     return self._parse_lat(bits[89:116])
-            # if item == 'lon':
-            #     return self._parse_lon(bits[61:89])
-        if self.type_id() == 5:
-            if item == 'mmsi':
-                return self._parse_mmsi(bits[8:38])
-            if item == 'shipname':
-                return self._parse_text(bits[112:232])
-            if item == 'destination':
-                return self._parse_text(bits[302:422])
+        return DECODERS[self.type_id()].decode(item, self.payload.bits)
 
     def _parse_mmsi(self, bits):
         return "%09i" % int(bits)
@@ -372,16 +371,6 @@ class Sentence:
         result = float("%.4f" % (out / 60.0 / 10000.0))
         return result
 
-    def _parse_text(self, bits):
-        def chunks(s, n):
-            for i in range(0, len(s), n):
-                yield s[i:i + n]
-
-        raw_ints = [int(nibble) for nibble in chunks(bits, 6)]
-        mapped_ints = [i if i > 31 else i + 64 for i in raw_ints]
-        text = ''.join([chr(i) for i in mapped_ints]).strip()
-        text = text.rstrip('@').strip()
-        return text
 
 
 class FragmentPool:
