@@ -215,7 +215,7 @@ class Field:
             self._decode = self._parse_lat
         elif name == 'lon':
             self._decode = self._parse_lon
-        elif data_type == 't':
+        elif data_type == 't' or data_type == 's':
             self._decode = self._parse_text
         elif data_type == 'I3':
             self._decode = lambda b: self._scaled_integer(b, 3)
@@ -223,6 +223,8 @@ class Field:
             self._decode = lambda b: self._scaled_integer(b, 4)
         elif data_type == 'u':
             self._decode = lambda b: int(b)
+        elif data_type == 'd':
+            self._decode = lambda b: b
         elif data_type == 'U1':
             self._decode = lambda b: int(b) / 10.0
         elif data_type == 'e':
@@ -232,7 +234,7 @@ class Field:
         elif data_type == 'x':
             self._decode = lambda b: "ignored({})".format(int(b))
         else:
-            raise ValueError("Sorry, don't know how to parse {} for field {} yet".format(data_type, name))
+            raise ValueError("Sorry, don't know how to parse '{}' for field '{}' yet".format(data_type, name))
 
     def decode(self, bits):
         return self._decode(bits[self.bit_range])
@@ -288,7 +290,7 @@ class Decoder:
 
 
 DECODERS = {}
-for message_type_id in range(1, 6):
+for message_type_id in range(1, 20):
     DECODERS[message_type_id] = Decoder(message_type_json[str(message_type_id)])
 
 
