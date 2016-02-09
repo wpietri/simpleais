@@ -10,20 +10,16 @@ field_json = '''{
       {
         "start": 0,
         "end": 5,
-        "len": 6,
         "description": "Message Type",
         "member": "type",
-        "t": "u",
-        "units": "Constant: 1"
+        "type": "u"
       },
       {
         "start": 6,
         "end": 7,
-        "len": 2,
         "description": "Repeat Indicator",
         "member": "repeat",
-        "t": "u",
-        "units": "Message repeat count"
+        "type": "u"
       }
     ]
   }

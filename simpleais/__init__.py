@@ -202,7 +202,7 @@ class NmeaPayload:
         return len(self.bits)
 
 
-message_type_json = json.loads(open(os.path.join(os.path.dirname(__file__), 'aivdm.json')).read())['message types']
+message_type_json = json.loads(open(os.path.join(os.path.dirname(__file__), 'aivdm.json')).read())['messages']
 
 
 class Field:
@@ -260,11 +260,11 @@ class Field:
 
 
 class Decoder:
-    def __init__(self, s):
+    def __init__(self, message_info):
         self.fields = {}
-        for field in s['fields']:
+        for field in message_info['fields']:
             name = field['member']
-            self.fields[name] = Field(name, field['start'], field['end'], field['t'])
+            self.fields[name] = Field(name, field['start'], field['end'], field['type'])
 
     def bit_range(self, name):
         return self.fields[name].bit_range
