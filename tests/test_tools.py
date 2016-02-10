@@ -1,7 +1,6 @@
 from unittest import TestCase
-import sys
 
-from simpleais.tools import DensityMap, Bucketer
+from simpleais.tools import *
 
 
 class TestDensityMap(TestCase):
@@ -17,8 +16,8 @@ class TestDensityMap(TestCase):
 
     def test_corners(self):
         m = DensityMap(3, 3)
-        m.add(0, 0)
-        m.add(1, 1)
+        m.add((0, 0))
+        m.add((1, 1))
         self.assertListEqual([
             '+---+',
             '|  9|',
@@ -29,8 +28,8 @@ class TestDensityMap(TestCase):
 
     def test_other_corners(self):
         m = DensityMap(3, 3)
-        m.add(0, 0)
-        m.add(-1, 1)
+        m.add((0, 0))
+        m.add((1, -1))
         self.assertListEqual([
             '+---+',
             '|9  |',
@@ -41,7 +40,7 @@ class TestDensityMap(TestCase):
 
     def test_point(self):
         m = DensityMap(3, 3)
-        m.add(0, 0)
+        m.add((0, 0))
         self.assertListEqual([
             '+---+',
             '|   |',
@@ -51,11 +50,10 @@ class TestDensityMap(TestCase):
         ], m.to_text())
 
     def test_line(self):
-        """ Slightly weird, might be better in the middle"""
         m = DensityMap(3, 3)
-        m.add(0, 0)
-        m.add(0, 1)
-        m.add(0, 2)
+        m.add((0, 0))
+        m.add((1, 0))
+        m.add((2, 0))
         self.assertListEqual([
             '+---+',
             '|   |',
@@ -66,11 +64,11 @@ class TestDensityMap(TestCase):
 
     def test_plus(self):
         m = DensityMap(3, 3)
-        m.add(1, 0)
-        m.add(0, -1)
-        m.add(0, 0)
-        m.add(0, 1)
-        m.add(-1, 0)
+        m.add((1, 0))
+        m.add((0, -1))
+        m.add((0, 0))
+        m.add((0, 1))
+        m.add((-1, 0))
         self.assertListEqual([
             '+---+',
             '| 9 |',
@@ -81,11 +79,11 @@ class TestDensityMap(TestCase):
 
     def test_x(self):
         m = DensityMap(3, 3)
-        m.add(1, -1)
-        m.add(1, 1)
-        m.add(0, 0)
-        m.add(-1, -1)
-        m.add(-1, 1)
+        m.add((1, -1))
+        m.add((1, 1))
+        m.add((0, 0))
+        m.add((-1, -1))
+        m.add((-1, 1))
         self.assertListEqual([
             '+---+',
             '|9 9|',
@@ -96,11 +94,11 @@ class TestDensityMap(TestCase):
 
     def test_l(self):
         m = DensityMap(3, 3)
-        m.add(1, -1)
-        m.add(0, -1)
-        m.add(-1, -1)
-        m.add(-1, 0)
-        m.add(-1, 1)
+        m.add((1, -1))
+        m.add((0, -1))
+        m.add((-1, -1))
+        m.add((-1, 0))
+        m.add((-1, 1))
         self.assertListEqual([
             '+---+',
             '|9  |',
@@ -111,29 +109,29 @@ class TestDensityMap(TestCase):
 
     def test_weight(self):
         m = DensityMap(3, 3)
-        m.add(1, 0)
-        m.add(0, -1)
-        m.add(0, 0)
-        m.add(0, 0)
-        m.add(0, 0)
-        m.add(0, 0)
-        m.add(0, 1)
-        m.add(-1, 0)
-        m.add(-1, 0)
+        m.add((1, 0))
+        m.add((0, -1))
+        m.add((0, 0))
+        m.add((0, 0))
+        m.add((0, 0))
+        m.add((0, 0))
+        m.add((0, 1))
+        m.add((-1, 0))
+        m.add((-1, 0))
         self.assertListEqual([
             '+---+',
             '| 2 |',
-            '|292|',
-            '| 4 |',
+            '|492|',
+            '| 2 |',
             '+---+',
         ], m.to_text())
 
     def test_funky_example(self):
         m = DensityMap(4, 4)
-        m.add(33.7419, -118.4680)
-        m.add(33.7418, -118.4677)
-        m.add(33.7417, -118.4675)
-        m.add(33.7415, -118.4672)
+        m.add((-118.4680, 33.7419))
+        m.add((-118.4677, 33.7418))
+        m.add((-118.4675, 33.7417))
+        m.add((-118.4672, 33.7415))
         self.assertListEqual([
             '+----+',
             '|99  |',
@@ -170,7 +168,6 @@ class TestBucketer(TestCase):
         self.assertEqual(3, b.bucket(33.7419))
 
 
-
 def test_bins(self):
     """
      Left as an explanation of how numpy binning works.Basically, you need
@@ -194,3 +191,26 @@ def test_bins(self):
     self.assertEqual(0, counts[0])
     for bucket in counts[1:]:
         self.assertEqual(values_per_bucket, bucket)
+
+
+from click.testing import CliRunner
+
+
+class CommandLineSmokeTest(TestCase):
+    commands = {cat, grep, as_text, burst, info, dump}
+
+    def test_handles_empty(self):
+        for c in self.commands:
+            runner = CliRunner()
+            result = runner.invoke(c, ['/dev/null'])
+            self.assertEqual(0, result.exit_code, "for {}".format(c.name))
+
+    def test_handles_one_line(self):
+        for c in self.commands - {burst}:
+            runner = CliRunner()
+            with runner.isolated_filesystem():
+                with open('example.ais', 'w') as f:
+                    f.write("1452468552.938 !AIVDM,1,1,,B,14Wtnn002SGLde:BbrBmdTLF0Vql,0*6E")
+                result = runner.invoke(c, ['example.ais'])
+                self.assertEqual(0, result.exit_code, "for {}".format(c.name))
+                self.assertTrue(len(result.output)>0, "for {}".format(c.name))

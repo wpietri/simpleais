@@ -220,10 +220,10 @@ class FieldDecoder:
     def patch_decoder(self, data_type):
         if self.name == 'mmsi':
             self._decode = self._parse_mmsi
-        elif self.name == 'lat':
-            self._decode = self._parse_lat
         elif self.name == 'lon':
             self._decode = self._parse_lon
+        elif self.name == 'lat':
+            self._decode = self._parse_lat
         elif data_type == 't' or data_type == 's':
             self._decode = self._parse_text
         elif data_type == 'I3':
@@ -253,14 +253,14 @@ class FieldDecoder:
     def _parse_mmsi(self, bits):
         return "%09i" % int(bits)
 
-    def _parse_lat(self, bits):
-        result = self._scaled_integer(bits, 4)
-        if result != 91.0:
-            return result
-
     def _parse_lon(self, bits):
         result = self._scaled_integer(bits, 4)
-        if result != 181.0:
+        if result != 181.0 and -180 <= result <= 180.0:
+            return result
+
+    def _parse_lat(self, bits):
+        result = self._scaled_integer(bits, 4)
+        if result != 91.0 and -90.0 <= result <= 90.0:
             return result
 
     def _twos_comp(self, val, length):
@@ -382,6 +382,11 @@ class Sentence:
     def type_id(self):
         return self.type_num
 
+    def location(self):
+        lon = self['lon']
+        lat = self['lat']
+        if lon and lat:
+            return (lon, lat)
     def message_bits(self):
         return self.payload.bits
 

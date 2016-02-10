@@ -21,11 +21,14 @@ def wild_disregard_for(e):
         exit(0)
 
 
-def print_sentence_source(text, file=sys.stdout):
+def print_sentence_source(text, file=None):
     if isinstance(text, str):
         text = [text]
     for line in text:
-        print(line, file=file, flush=True)
+        if file:
+            print(line, file=file)
+        else:
+            print(line, flush=True)
 
 
 def sentences_from_sources(sources):
@@ -50,9 +53,11 @@ def cat(sources):
 @click.option('--mmsi', '-m', multiple=True)
 @click.option('--mmsi-file', '-f')
 @click.option('--type', '-t', 'sentence_type', type=int)
-@click.option('--latitude', '--lat', nargs=2, type=float)
 @click.option('--longitude', '--long', '--lon', nargs=2, type=float)
-def grep(sources, mmsi, mmsi_file=None, sentence_type=None, lat=None, lon=None):
+@click.option('--latitude', '--lat', nargs=2, type=float)
+def grep(sources, mmsi=None, mmsi_file=None, sentence_type=None, lon=None, lat=None):
+    if not mmsi:
+        mmsi = []
     if mmsi_file:
         mmsi = list(mmsi)
         with open(mmsi_file, "r") as f:
@@ -66,10 +71,10 @@ def grep(sources, mmsi, mmsi_file=None, sentence_type=None, lat=None, lon=None):
                 factors.append(sentence['mmsi'] in mmsi)
             if sentence_type:
                 factors.append(sentence.type_id() == sentence_type)
-            if lat:
-                factors.append(sentence['lat'] and lat[0] < sentence['lat'] < lat[1])
             if lon:
                 factors.append(sentence['lon'] and lon[0] < sentence['lon'] < lon[1])
+            if lat:
+                factors.append(sentence['lat'] and lat[0] < sentence['lat'] < lat[1])
 
             if functools.reduce(lambda x, y: x and y, factors):
                 print_sentence_source(sentence.text)
@@ -174,12 +179,12 @@ class MaxMin:
 
 class GeoInfo:
     def __init__(self):
-        self.lat = MaxMin()
         self.lon = MaxMin()
+        self.lat = MaxMin()
 
-    def add(self, latitude, longitude):
-        self.lat.add(latitude)
-        self.lon.add(longitude)
+    def add(self, point):
+        self.lon.add(point[0])
+        self.lat.add(point[1])
 
     def report(self, indent=""):
         print("{}    top left: {}, {}".format(indent, self.lat.max, self.lon.min))
@@ -190,7 +195,7 @@ class GeoInfo:
                                                                             self.lon.min, self.lon.max)
 
     def valid(self):
-        return self.lat.valid() and self.lon.valid()
+        return self.lon.valid() and self.lat.valid()
 
 
 class SentencesInfo:
@@ -205,8 +210,9 @@ class SentencesInfo:
         self.sentence_count += 1
         self.type_counts[sentence.type_id()] += 1
         self.sender_counts[sentence['mmsi']] += 1
-        if sentence['lat']:
-            self.geo_info.add(sentence['lat'], sentence['lon'])
+        loc = sentence.location()
+        if loc:
+            self.geo_info.add(loc)
 
     def report(self):
         print("Found {} senders in {} sentences.".format(len(self.sender_counts), self.sentence_count))
@@ -250,9 +256,9 @@ class DensityMap:
         self.geo_info = GeoInfo()
         self.points = []
 
-    def add(self, latitude, longitude):
-        self.points.append((latitude, longitude))
-        self.geo_info.add(latitude, longitude)
+    def add(self, point):
+        self.points.append(point)
+        self.geo_info.add(point)
 
     def to_counts(self):
         # noinspection PyUnusedLocal
@@ -260,7 +266,7 @@ class DensityMap:
         if self.geo_info.valid():
             xb = Bucketer(self.geo_info.lon.min, self.geo_info.lon.max, self.width)
             yb = Bucketer(self.geo_info.lat.min, self.geo_info.lat.max, self.height)
-            for lat, lon in self.points:
+            for lon, lat in self.points:
                 x = xb.bucket(lon)
                 y = self.height - 1 - yb.bucket(lat)
                 results[y][x] += 1
@@ -299,8 +305,9 @@ def info(sources, individual, show_map):
     for sentence in sentences_from_sources(sources):
         sentences_info.add(sentence)
         if show_map:
-            if sentence['lat']:
-                map_info.add(sentence['lat'], sentence['lon'])
+            loc = sentence.location()
+            if loc:
+                map_info.add(loc)
         if individual:
             sender_info[sentence['mmsi']].add(sentence)
 

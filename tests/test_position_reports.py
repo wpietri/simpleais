@@ -4,32 +4,6 @@ import simpleais
 
 
 class TestPositionReports(TestCase):
-    """
-    //: Type CNB
-    .Common Navigation Block
-    [frame="topbot",options="header"]
-    |==============================================================================
-    |Field   |Len |Description             |Member    |T|Units
-    |0-5     | 6  |Message Type            |type      |u|Constant: 1-3
-    |6-7     | 2  |Repeat Indicator        |repeat    |u|Message repeat count
-    |8-37    |30  |MMSI                    |mmsi      |u|9 decimal digits
-    |38-41   | 4  |Navigation Status       |status    |e|See "Navigation Status"
-    |42-49   | 8  |Rate of Turn (ROT)      |turn      |I3|See below
-    |50-59   |10  |Speed Over Ground (SOG) |speed     |U1|See below
-    |60-60   | 1  |Position Accuracy       |accuracy  |b|See below
-    |61-88   |28  |Longitude               |lon       |I4|Minutes/10000 (see below)
-    |89-115  |27  |Latitude                |lat       |I4|Minutes/10000 (see below)
-    |116-127 |12  |Course Over Ground (COG)|course    |U1|Relative to true north,
-                                                         to 0.1 degree precision
-    |128-136 | 9  |True Heading (HDG)      |heading   |u|0 to 359 degrees,
-                                                          511 = not available.
-    |137-142 | 6  |Time Stamp              |second    |u|Second of UTC timestamp
-    |143-144 | 2  |Maneuver Indicator      |maneuver  |e|See "Maneuver Indicator"
-    |145-147 | 3  |Spare                   |          |x|Not used
-    |148-148 | 1  |RAIM flag               |raim      |b|See below
-    |149-167 |19  |Radio status            |radio     |u|See below
-    |==============================================================================
-    """
 
     def setUp(self):
         super().setUp()
@@ -38,11 +12,25 @@ class TestPositionReports(TestCase):
         m = simpleais.parse('!ABVDM,1,1,,A,15NaEPPP01oR`R6CC?<j@gvr0<1C,0*1F')
         self.assertEqual(1, m.type_id())
         self.assertEqual('367678850', m['mmsi'])
-        self.assertAlmostEquals(33.7302, m['lat'])
         self.assertAlmostEquals(-118.2634, m['lon'])
+        self.assertAlmostEquals(33.7302, m['lat'])
+
+    def test_as_location(self):
+        m = simpleais.parse('!ABVDM,1,1,,A,15NaEPPP01oR`R6CC?<j@gvr0<1C,0*1F')
+        location = m.location()
+        self.assertAlmostEquals(-118.2634, location[0])
+        self.assertAlmostEquals(33.7302, location[1])
+
+    def test_bad_values(self):
+        # packet expresses longitude of 221.8539, which is crazy, so no location should be available
+        m = simpleais.parse('!AIVDM,1,1,,A,2C2ILGC4oRgoT?r1fdC3wcvi26;8,0*33')
+        self.assertEqual('203840605', m['mmsi'])
+        self.assertIsNone(m['lon'])
+        self.assertAlmostEquals(3.0226, m['lat'])
+        self.assertIsNone(m.location())
 
     def test_no_lat_or_lon(self):
         m = simpleais.parse('!ABVDM,1,1,,A,152MQ1qP?w<tSF0l4Q@>4?wp1p7G,0*78')
         self.assertEqual('338125063', m['mmsi'])
-        self.assertIsNone(m['lat'])
         self.assertIsNone(m['lon'])
+        self.assertIsNone(m['lat'])
