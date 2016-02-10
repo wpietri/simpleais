@@ -60,6 +60,21 @@ class TestBasicParsing(TestCase):
         sentence = simpleais.parse(fragmented_message_type_8)[0]
         self.assertEqual(fragmented_message_type_8, sentence.text)
 
+    def test_checksum_validation_for_single_fragment_sentences(self):
+        good = parse("!ABVDM,1,1,,A,15NaEPPP01oR`R6CC?<j@gvr0<1C,0*1F")
+        self.assertTrue(good.check())
+        bad = parse("!AIVDM,1,1,,A,ENkb9I99S@:9h4W17bW2@I7@@@;V4=v:nv;h00003vP000,2*15")
+        self.assertFalse(bad.check())
+
+    def test_checksum_validation_for_multiple_fragment_sentences(self):
+        good_and_bad_1 = parse("!AIVDM,2,1,6,B,55NEA8T00001L@GC7WT4h<5A85b0<hU10E:2000t1@`56t0Ht04hC`1TPCPj,0*10")
+        good_and_bad_2 = parse("!AIVDM,2,2,6,B,Dhkh0000000,2*0E")
+        self.assertTrue(good_and_bad_1.check())
+        self.assertFalse(good_and_bad_2.check())
+        good_and_bad = Sentence.from_fragments([good_and_bad_1, good_and_bad_2])
+        self.assertFalse(good_and_bad.check())
+        self.assertEqual([True, False], good_and_bad.checksum_valid)
+
 
 class TestFragment(TestCase):
     def test_last(self):
@@ -208,4 +223,3 @@ class TestNameParsing(TestCase):
         m = parse(['!AIVDM,2,1,7,B,54`Ut;l2CO<P?H53<010DL5=E>1HuT4LE800001@LHi,0*12',
                    '!AIVDM,2,2,7,B,JF6uF0G1H40C0000000000000000,2*50'])[0]
         self.assertEqual('PEGASUS VOYAGER', m['shipname'])
-

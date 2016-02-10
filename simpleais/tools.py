@@ -327,20 +327,6 @@ def chunks(l, n):
         yield l[i:i + n]
 
 
-PAT = re.compile("!([A-Z]{5},.*)\*(..)")
-# based on https://en.wikipedia.org/wiki/NMEA_0183
-def checksum_check(fragment_text):
-    m = PAT.search(fragment_text)
-    if not m:
-        raise (ValueError("WTF {}".format(fragment_text)))
-    calculated = hex(functools.reduce(lambda a, b: a ^ b, [ord(c) for c in m.group(1)]))[2:4]
-    return m.group(2) == calculated.upper()
-
-
-def checksum_checks(sentence):
-    return [checksum_check(t) for t in sentence.text]
-
-
 @click.command()
 @click.argument('sources', nargs=-1)
 @click.option('--bits', '-b', is_flag=True)
@@ -361,7 +347,7 @@ def dump(sources, bits):
                 bit_lumps = list(chunks(str(sentence.message_bits()), 6))
                 groups = chunks(bit_lumps, 8)
                 pos = 0
-                print("         check: {}".format(", ".join([str(c) for c in checksum_checks(sentence)])))
+                print("         check: {}".format(", ".join([str(c) for c in sentence.checksum_valid])))
                 print("          bits: {:3d} {}".format(pos, " ".join(groups.__next__())))
                 for group in groups:
                     pos += 48

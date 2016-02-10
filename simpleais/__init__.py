@@ -1,5 +1,6 @@
 import collections
 from functools import reduce
+import functools
 from io import TextIOBase
 import json
 import logging
@@ -120,14 +121,16 @@ def parse_one(string):
     fragment_count = int(fields[1])
     radio_channel = fields[4]
     payload = NmeaPayload(fields[5], int(fields[6]))
-
+    # based on https://en.wikipedia.org/wiki/NMEA_0183
+    calculated_checksum = hex(functools.reduce(lambda a, b: a ^ b, [ord(c) for c in content]))[2:4]
+    checksum_valid = calculated_checksum.upper() == checksum
     if fragment_count == 1:
-        return Sentence(talker, sentence_type, radio_channel, payload, time, [string])
+        return Sentence(talker, sentence_type, radio_channel, payload, [checksum_valid], time, [string])
     else:
         fragment_number = int(fields[2])
         message_id = int(fields[3])
         return SentenceFragment(talker, sentence_type, fragment_count, fragment_number,
-                                message_id, radio_channel, payload, time, string)
+                                message_id, radio_channel, payload, checksum_valid, time, string)
 
 
 def parse(message):
@@ -319,7 +322,7 @@ for message_type_id in range(1, 28):
 
 class SentenceFragment:
     def __init__(self, talker, sentence_type, total_fragments, fragment_number, message_id, radio_channel, payload,
-                 time=None, text=None):
+                 checksum_valid, time=None, text=None):
         self.talker = talker
         self.sentence_type = sentence_type
         self.total_fragments = total_fragments
@@ -327,6 +330,7 @@ class SentenceFragment:
         self.message_id = message_id
         self.radio_channel = radio_channel
         self.payload = payload
+        self.checksum_valid = checksum_valid
         self.time = time
         self.text = text
 
@@ -345,6 +349,9 @@ class SentenceFragment:
 
     def bits(self):
         return self.payload.bits
+
+    def check(self):
+        return self.checksum_valid
 
 
 class Field(object):
@@ -370,11 +377,12 @@ class Field(object):
 
 
 class Sentence:
-    def __init__(self, talker, sentence_type, radio_channel, payload, time=None, text=None):
+    def __init__(self, talker, sentence_type, radio_channel, payload, checksum_valid, time=None, text=None):
         self.talker = talker
         self.sentence_type = sentence_type
         self.radio_channel = radio_channel
         self.payload = payload
+        self.checksum_valid = checksum_valid
         self.time = time
         self.text = text
         self.type_num = int(self.payload.bits[0:6])
@@ -382,11 +390,15 @@ class Sentence:
     def type_id(self):
         return self.type_num
 
+    def check(self):
+        return reduce(lambda a, b: a and b, self.checksum_valid)
+
     def location(self):
         lon = self['lon']
         lat = self['lat']
         if lon and lat:
-            return (lon, lat)
+            return lon, lat
+
     def message_bits(self):
         return self.payload.bits
 
@@ -404,8 +416,9 @@ class Sentence:
         first = matching_fragments[0]
         message_bits = reduce(lambda a, b: a + b, [f.bits() for f in matching_fragments])
         text = [f.text for f in matching_fragments]
-        return Sentence(first.talker, first.sentence_type, first.radio_channel, NmeaPayload(message_bits), first.time,
-                        text)
+        checksum_valid = [f.checksum_valid for f in matching_fragments]
+        return Sentence(first.talker, first.sentence_type, first.radio_channel, NmeaPayload(message_bits),
+                        checksum_valid, first.time, text)
 
 
 class FragmentPool:
@@ -501,7 +514,7 @@ def _handle_url_source(source):
                 for line in f:
                     yield line.decode('utf-8')
         except Exception as e:
-            logging.getLogger().error("unexpected failure in source {}".format(source),exc_info=True)
+            logging.getLogger().error("unexpected failure in source {}".format(source), exc_info=True)
             sleep(1)
 
 
