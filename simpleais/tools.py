@@ -2,15 +2,23 @@ from collections import defaultdict
 import functools
 import os
 import sys
+import re
+from contextlib import contextmanager
 
 import click
 import numpy
 
 from . import sentences_from_source
-import re
-
 
 TIME_FORMAT = "%Y/%m/%d %H:%M:%S"
+
+
+@contextmanager
+def wild_disregard_for(e):
+    try:
+        yield
+    except e:
+        exit(0)
 
 
 def print_sentence_source(text, file=sys.stdout):
@@ -45,36 +53,38 @@ def grep(sources, mmsi, mmsi_file=None, sentence_type=None, lat=None, lon=None):
             mmsi.extend([l.strip() for l in f.readlines()])
         mmsi = frozenset(mmsi)
     for sentence in sentences_from_sources(sources):
-        factors = [True]
+        with wild_disregard_for(BrokenPipeError):
+            factors = [True]
 
-        if len(mmsi) > 0:
-            factors.append(sentence['mmsi'] in mmsi)
-        if sentence_type:
-            factors.append(sentence.type_id() == sentence_type)
-        if lat:
-            factors.append(sentence['lat'] and lat[0] < sentence['lat'] < lat[1])
-        if lon:
-            factors.append(sentence['lon'] and lon[0] < sentence['lon'] < lon[1])
+            if len(mmsi) > 0:
+                factors.append(sentence['mmsi'] in mmsi)
+            if sentence_type:
+                factors.append(sentence.type_id() == sentence_type)
+            if lat:
+                factors.append(sentence['lat'] and lat[0] < sentence['lat'] < lat[1])
+            if lon:
+                factors.append(sentence['lon'] and lon[0] < sentence['lon'] < lon[1])
 
-        if functools.reduce(lambda x, y: x and y, factors):
-            print_sentence_source(sentence.text)
+            if functools.reduce(lambda x, y: x and y, factors):
+                print_sentence_source(sentence.text)
 
 
 @click.command()
 @click.argument('sources', nargs=-1)
 def as_text(sources):
     for sentence in sentences_from_sources(sources):
-        result = []
-        if sentence.time:
-            result.append(sentence.time.strftime(TIME_FORMAT))
-        result.append("{:2}".format(sentence.type_id()))
-        result.append("{:9}".format(str(sentence['mmsi'])))
-        if sentence['lat']:
-            result.append("{:9.4f} {:9.4f}".format(sentence['lat'], sentence['lon']))
-        elif sentence.type_id() == 5:
-            result.append("{}->{}".format(sentence['shipname'], sentence['destination']))
+        with wild_disregard_for(BrokenPipeError):
+            result = []
+            if sentence.time:
+                result.append(sentence.time.strftime(TIME_FORMAT))
+            result.append("{:2}".format(sentence.type_id()))
+            result.append("{:9}".format(str(sentence['mmsi'])))
+            if sentence['lat']:
+                result.append("{:9.4f} {:9.4f}".format(sentence['lat'], sentence['lon']))
+            elif sentence.type_id() == 5:
+                result.append("{}->{}".format(sentence['shipname'], sentence['destination']))
 
-        print(" ".join(result))
+            print(" ".join(result))
 
 
 @click.command()
@@ -287,13 +297,14 @@ def info(sources, individual, show_map):
         if individual:
             sender_info[sentence['mmsi']].add(sentence)
 
-    sentences_info.report()
-    if show_map:
-        map_info.show()
+    with wild_disregard_for(BrokenPipeError):
+        sentences_info.report()
+        if show_map:
+            map_info.show()
 
-    if individual:
-        for mmsi in sorted(sender_info):
-            sender_info[mmsi].report()
+        if individual:
+            for mmsi in sorted(sender_info):
+                sender_info[mmsi].report()
 
 
 def chunks(l, n):
@@ -307,12 +318,14 @@ PAT = re.compile("!([A-Z]{5},.*)\*(..)")
 def checksum_check(fragment_text):
     m = PAT.search(fragment_text)
     if not m:
-        raise(ValueError("WTF {}".format(fragment_text)))
-    calculated = hex(functools.reduce(lambda a,b: a^b, [ord(c) for c in m.group(1)]))[2:4]
+        raise (ValueError("WTF {}".format(fragment_text)))
+    calculated = hex(functools.reduce(lambda a, b: a ^ b, [ord(c) for c in m.group(1)]))[2:4]
     return m.group(2) == calculated.upper()
+
 
 def checksum_checks(sentence):
     return [checksum_check(t) for t in sentence.text]
+
 
 @click.command()
 @click.argument('sources', nargs=-1)
@@ -320,31 +333,31 @@ def checksum_checks(sentence):
 def dump(sources, bits):
     sentence_count = 0
     for sentence in sentences_from_sources(sources):
-        if sentence_count != 0:
-            print()
-        sentence_count += 1
-        print("Sentence {}:".format(sentence_count))
-        if sentence.time:
-            print("          time: {}".format(sentence.time.strftime(TIME_FORMAT)))
-        for t in sentence.text:
-            print("          text: {}".format(re.search("!.*", t).group(0)))
-        print("        length: {}".format(len(sentence.message_bits())))
-        if bits:
-            bit_lumps = list(chunks(str(sentence.message_bits()), 6))
-            groups = chunks(bit_lumps, 8)
-            pos = 0
-            print("         check: {}".format(", ".join([str(c) for c in checksum_checks(sentence)])))
-            print("          bits: {:3d} {}".format(pos, " ".join(groups.__next__())))
-            for group in groups:
-                pos += 48
-                print("          bits: {:3d} {}".format(pos," ".join(group)))
-
-        for field in sentence.fields():
-            value = '-'
-            if field.valid():
-                value = field.value()
+        with wild_disregard_for(BrokenPipeError):
+            if sentence_count != 0:
+                print()
+            sentence_count += 1
+            print("Sentence {}:".format(sentence_count))
+            if sentence.time:
+                print("          time: {}".format(sentence.time.strftime(TIME_FORMAT)))
+            for t in sentence.text:
+                print("          text: {}".format(re.search("!.*", t).group(0)))
+            print("        length: {}".format(len(sentence.message_bits())))
             if bits:
-                print("  {:>12}: {} ({})".format(field.name(), value, field.bits()))
-            else:
-                print("  {:>12}: {}".format(field.name(), value))
+                bit_lumps = list(chunks(str(sentence.message_bits()), 6))
+                groups = chunks(bit_lumps, 8)
+                pos = 0
+                print("         check: {}".format(", ".join([str(c) for c in checksum_checks(sentence)])))
+                print("          bits: {:3d} {}".format(pos, " ".join(groups.__next__())))
+                for group in groups:
+                    pos += 48
+                    print("          bits: {:3d} {}".format(pos, " ".join(group)))
 
+            for field in sentence.fields():
+                value = '-'
+                if field.valid():
+                    value = field.value()
+                if bits:
+                    print("  {:>12}: {} ({})".format(field.name(), value, field.bits()))
+                else:
+                    print("  {:>12}: {}".format(field.name(), value))
