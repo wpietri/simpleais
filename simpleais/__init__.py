@@ -285,7 +285,6 @@ class FieldDecoder:
         return text
 
 
-
 class MessageDecoder:
     def __init__(self, message_info):
         self.field_decoders = []
@@ -349,13 +348,14 @@ class SentenceFragment:
 
 
 class Field(object):
-#
+    #
     def __init__(self, field_decoder, sentence):
         self.decoder = field_decoder
         self.sentence = sentence
 
     def name(self):
         return self.decoder.name
+
     def description(self):
         return self.decoder.description
 
@@ -367,7 +367,6 @@ class Field(object):
 
     def valid(self):
         return len(self.sentence.message_bits()) > self.decoder.end
-
 
 
 class Sentence:
@@ -402,9 +401,6 @@ class Sentence:
         text = [f.text for f in matching_fragments]
         return Sentence(first.talker, first.sentence_type, first.radio_channel, NmeaPayload(message_bits), first.time,
                         text)
-
-
-
 
 
 class FragmentPool:
@@ -458,7 +454,7 @@ def fragments_from_source(source):
             else:
                 logging.getLogger().warn("skipped: \"{}\"".format(line.strip()))
         except Exception as e:
-            print("failure", e, "for", line)
+            logging.getLogger().error("unexpected failure for line {} in source {}".format(line, source), exc_info=True)
 
 
 def sentences_from_source(source):
@@ -469,7 +465,8 @@ def sentences_from_source(source):
             if parser.has_sentence():
                 yield parser.next_sentence()
         except Exception as e:
-            print("failure", e, "for", fragment)
+            logging.getLogger().error("unexpected failure for fragment {} in source {}".format(fragment, source),
+                                      exc_info=True)
 
 
 # noinspection PyBroadException
@@ -483,10 +480,10 @@ def _handle_serial_source(source):
                     raw_line = f.readline()
                     try:
                         yield raw_line.decode('ascii')
-                    except Exception as e:
-                        print("weird input", raw_line, e)
-        except Exception as e:
-            print("unexpected failure", e)
+                    except Exception:
+                        logging.getLogger().warn("Failure for input: \"{}\"".format(raw_line.strip()), exc_info=True)
+        except Exception:
+            logging.getLogger().error("unexpected failure", exc_info=True)
             sleep(1)
 
 
@@ -499,7 +496,7 @@ def _handle_url_source(source):
                 for line in f:
                     yield line.decode('utf-8')
         except Exception as e:
-            print("unexpected failure", e)
+            logging.getLogger().error("unexpected failure in source {}".format(source),exc_info=True)
             sleep(1)
 
 

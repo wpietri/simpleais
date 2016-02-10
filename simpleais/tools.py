@@ -23,10 +23,9 @@ def wild_disregard_for(e):
 
 def print_sentence_source(text, file=sys.stdout):
     if isinstance(text, str):
-        print(text, file=file)
-    else:
-        for line in text:
-            print(line, file=file)
+        text = [text]
+    for line in text:
+        print(line, file=file, flush=True)
 
 
 def sentences_from_sources(sources):
@@ -37,6 +36,13 @@ def sentences_from_sources(sources):
     else:
         for sentence in sentences_from_source(sys.stdin):
             yield sentence
+
+@click.command()
+@click.argument('sources', nargs=-1)
+def cat(sources):
+    for sentence in sentences_from_sources(sources):
+        with wild_disregard_for(BrokenPipeError):
+            print_sentence_source(sentence.text)
 
 
 @click.command()

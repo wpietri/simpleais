@@ -10,6 +10,7 @@ setup(name='simpleais',
       install_requires=['bitstring', 'testfixtures', 'Click', 'numpy', 'beautifulsoup4'],
       entry_points={
           'console_scripts': [
+              'aiscat = simpleais.tools:cat',
               'aisgrep = simpleais.tools:grep',
               'aist = simpleais.tools:as_text',
               'aisburst = simpleais.tools:burst',
