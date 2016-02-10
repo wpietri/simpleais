@@ -84,6 +84,10 @@ class TestFieldLookup(TestCase):
         # 3.3.7.2.2 and 3.3.7.3.2 in ITU-R M.1371-5 if you'd like to
         # interpret it fully.
 
+    def test_known_and_unknown_fields(self):
+        m = simpleais.parse('!ABVDM,1,1,,A,15NaEPPP01oR`R6CC?<j@gvr0<1C,0*1F')
+        self.assertTrue(m['type'])
+        self.assertFalse(m['unknown'])
 
 
 class TestNettlesomePackets(TestCase):

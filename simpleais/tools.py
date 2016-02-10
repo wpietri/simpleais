@@ -194,6 +194,7 @@ class SentencesInfo:
         self.sender_counts = defaultdict(int)
         self.geo_info = GeoInfo()
 
+
     def add(self, sentence):
         self.sentence_count += 1
         self.type_counts[sentence.type_id()] += 1

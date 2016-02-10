@@ -300,7 +300,8 @@ class MessageDecoder:
         return self.field_decoders_by_id[name].bit_range
 
     def decode(self, name, bits):
-        return self.field_decoders_by_id[name].decode(bits)
+        if name in self.field_decoders_by_id:
+            return self.field_decoders_by_id[name].decode(bits)
 
     def fields(self):
         return self.field_decoders_by_id.values()
