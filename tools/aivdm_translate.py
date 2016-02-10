@@ -41,6 +41,7 @@ class Table:
 def fields_for_row(row):
     result = OrderedDict()
     m = re.search("(\d+)-(\d+)", row['Field'])
+
     if m:
         result['start'] = int(m.group(1))
         result['end'] = int(m.group(2))
@@ -48,12 +49,17 @@ def fields_for_row(row):
         m = re.search("(\d+)", row['Field'])
         result['start'] = result['end'] = int(m.group(1))
     result['description'] = row['Description']
+
     if 'Member' in row:
         result['member'] = row['Member']
     elif 'Member/Type' in row:
         result['member'] = row['Member/Type']
     else:
         raise (ValueError("can't find member in row {}".format(row)))
+
+    if len(result['member']) == 0:
+        result['member'] = 'ignored-' + str(result['start'])
+
     if 'T' in row:
         result['type'] = row['T']
     elif 'u' in row:

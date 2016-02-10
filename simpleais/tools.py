@@ -65,7 +65,8 @@ def grep(sources, mmsi, mmsi_file=None, sentence_type=None, lat=None, lon=None):
 def as_text(sources):
     for sentence in sentences_from_sources(sources):
         result = []
-        result.append(sentence.time.strftime(TIME_FORMAT))
+        if sentence.time:
+            result.append(sentence.time.strftime(TIME_FORMAT))
         result.append("{:2}".format(sentence.type_id()))
         result.append("{:9}".format(str(sentence['mmsi'])))
         if sentence['lat']:
@@ -301,22 +302,22 @@ def chunks(l, n):
         yield l[i:i + n]
 
 
-PAT = re.compile("!(A.*)\*(..)")
+PAT = re.compile("!([A-Z]{5},.*)\*(..)")
 # based on https://en.wikipedia.org/wiki/NMEA_0183
 def checksum_check(fragment_text):
     m = PAT.search(fragment_text)
+    if not m:
+        raise(ValueError("WTF {}".format(fragment_text)))
     calculated = hex(functools.reduce(lambda a,b: a^b, [ord(c) for c in m.group(1)]))[2:4]
     return m.group(2) == calculated.upper()
 
 def checksum_checks(sentence):
-    if isinstance(sentence.text, str):
-        return [checksum_check(sentence.text)]
-    else:
-        return [checksum_check(t) for t in sentence.text]
+    return [checksum_check(t) for t in sentence.text]
 
 @click.command()
 @click.argument('sources', nargs=-1)
-def dump(sources):
+@click.option('--bits', '-b', is_flag=True)
+def dump(sources, bits):
     sentence_count = 0
     for sentence in sentences_from_sources(sources):
         if sentence_count != 0:
@@ -324,12 +325,26 @@ def dump(sources):
         sentence_count += 1
         print("Sentence {}:".format(sentence_count))
         if sentence.time:
-            print("   time: {}".format(sentence.time.strftime(TIME_FORMAT)))
-        print("   type: {}".format(sentence.type_id()))
-        print("   MMSI: {}".format(sentence['mmsi']))
-        bit_lumps = list(chunks(str(sentence.message_bits()), 6))
-        groups = chunks(bit_lumps, 10)
-        print("  check: {}".format(", ".join([str(c) for c in checksum_checks(sentence)])))
-        print("   bits: {}".format(" ".join(groups.__next__())))
-        for group in groups:
-            print("         {}".format(" ".join(group)))
+            print("          time: {}".format(sentence.time.strftime(TIME_FORMAT)))
+        for t in sentence.text:
+            print("          text: {}".format(re.search("!.*", t).group(0)))
+        print("        length: {}".format(len(sentence.message_bits())))
+        if bits:
+            bit_lumps = list(chunks(str(sentence.message_bits()), 6))
+            groups = chunks(bit_lumps, 8)
+            pos = 0
+            print("         check: {}".format(", ".join([str(c) for c in checksum_checks(sentence)])))
+            print("          bits: {:3d} {}".format(pos, " ".join(groups.__next__())))
+            for group in groups:
+                pos += 48
+                print("          bits: {:3d} {}".format(pos," ".join(group)))
+
+        for field in sentence.fields():
+            value = '-'
+            if field.valid():
+                value = field.value()
+            if bits:
+                print("  {:>12}: {} ({})".format(field.name(), value, field.bits()))
+            else:
+                print("  {:>12}: {}".format(field.name(), value))
+

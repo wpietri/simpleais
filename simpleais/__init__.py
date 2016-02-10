@@ -48,7 +48,10 @@ class Bits:
         return self.contents.__len__()
 
     def __eq__(self, other):
-        return self.contents.__eq__(other.contents)
+        if isinstance(other, Bits):
+            return self.contents.__eq__(other.contents)
+        else:
+            return int(self) == int(other)
 
     def __str__(self):
         return self.contents
@@ -119,7 +122,7 @@ def parse_one(string):
     payload = NmeaPayload(fields[5], int(fields[6]))
 
     if fragment_count == 1:
-        return Sentence(talker, sentence_type, radio_channel, payload, time, string)
+        return Sentence(talker, sentence_type, radio_channel, payload, time, [string])
     else:
         fragment_number = int(fields[2])
         message_id = int(fields[3])
@@ -205,15 +208,21 @@ class NmeaPayload:
 message_type_json = json.loads(open(os.path.join(os.path.dirname(__file__), 'aivdm.json')).read())['messages']
 
 
-class Field:
-    def __init__(self, name, start, end, data_type):
+class FieldDecoder:
+    def __init__(self, name, start, end, data_type, description):
         self.name = name
+        self.start = start
+        self.end = end
         self.bit_range = slice(start, end + 1)
-        if name == 'mmsi':
+        self.description = description
+        self.patch_decoder(data_type)
+
+    def patch_decoder(self, data_type):
+        if self.name == 'mmsi':
             self._decode = self._parse_mmsi
-        elif name == 'lat':
+        elif self.name == 'lat':
             self._decode = self._parse_lat
-        elif name == 'lon':
+        elif self.name == 'lon':
             self._decode = self._parse_lon
         elif data_type == 't' or data_type == 's':
             self._decode = self._parse_text
@@ -230,13 +239,13 @@ class Field:
         elif data_type == 'U1':
             self._decode = lambda b: int(b) / 10.0
         elif data_type == 'e':
-            self._decode = lambda b: "name {}".format(int(b))  # TODO: find and include enumerated types
+            self._decode = lambda b: "enum-{}".format(int(b))  # TODO: find and include enumerated types
         elif data_type == 'b':
             self._decode = lambda b: b == 1
         elif data_type == 'x':
-            self._decode = lambda b: "ignored({})".format(int(b))
+            self._decode = lambda b: int(b)
         else:
-            raise ValueError("Sorry, don't know how to parse '{}' for field '{}' yet".format(data_type, name))
+            raise ValueError("Sorry, don't know how to parse '{}' for field '{}' yet".format(data_type, self.name))
 
     def decode(self, bits):
         return self._decode(bits[self.bit_range])
@@ -277,23 +286,35 @@ class Field:
 
 
 
-class Decoder:
+class MessageDecoder:
     def __init__(self, message_info):
-        self.fields = {}
+        self.field_decoders = []
+        self.field_decoders_by_id = collections.OrderedDict()
         for field in message_info['fields']:
             name = field['member']
-            self.fields[name] = Field(name, field['start'], field['end'], field['type'])
+            decoder = FieldDecoder(name, field['start'], field['end'], field['type'], field['description'])
+            self.field_decoders.append(decoder)
+            self.field_decoders_by_id[name] = decoder
 
     def bit_range(self, name):
-        return self.fields[name].bit_range
+        return self.field_decoders_by_id[name].bit_range
 
     def decode(self, name, bits):
-        return self.fields[name].decode(bits)
+        return self.field_decoders_by_id[name].decode(bits)
+
+    def fields(self):
+        return self.field_decoders_by_id.values()
+
+    def field(self, key):
+        if isinstance(key, int):
+            return self.field_decoders[key]
+        else:
+            return self.field_decoders_by_id[key]
 
 
-DECODERS = {}
+MESSAGE_DECODERS = {}
 for message_type_id in range(1, 28):
-    DECODERS[message_type_id] = Decoder(message_type_json[str(message_type_id)])
+    MESSAGE_DECODERS[message_type_id] = MessageDecoder(message_type_json[str(message_type_id)])
 
 
 class SentenceFragment:
@@ -326,6 +347,28 @@ class SentenceFragment:
         return self.payload.bits
 
 
+class Field(object):
+#
+    def __init__(self, field_decoder, sentence):
+        self.decoder = field_decoder
+        self.sentence = sentence
+
+    def name(self):
+        return self.decoder.name
+    def description(self):
+        return self.decoder.description
+
+    def value(self):
+        return self.decoder.decode(self.sentence.message_bits())
+
+    def bits(self):
+        return self.sentence.message_bits()[self.decoder.bit_range]
+
+    def valid(self):
+        return len(self.sentence.message_bits()) > self.decoder.end
+
+
+
 class Sentence:
     def __init__(self, talker, sentence_type, radio_channel, payload, time=None, text=None):
         self.talker = talker
@@ -334,12 +377,22 @@ class Sentence:
         self.payload = payload
         self.time = time
         self.text = text
+        self.type_num = int(self.payload.bits[0:6])
 
     def type_id(self):
-        return int(self.payload.bits[0:6])
+        return self.type_num
 
     def message_bits(self):
         return self.payload.bits
+
+    def __getitem__(self, item):
+        return MESSAGE_DECODERS[self.type_num].decode(item, self.payload.bits)
+
+    def field(self, key):
+        return Field(MESSAGE_DECODERS[self.type_num].field(key), self)
+
+    def fields(self):
+        return [Field(fd, self) for fd in MESSAGE_DECODERS[self.type_num].fields()]
 
     @classmethod
     def from_fragments(cls, matching_fragments):
@@ -349,31 +402,7 @@ class Sentence:
         return Sentence(first.talker, first.sentence_type, first.radio_channel, NmeaPayload(message_bits), first.time,
                         text)
 
-    def __getitem__(self, item):
-        return DECODERS[self.type_id()].decode(item, self.payload.bits)
 
-    def _parse_mmsi(self, bits):
-        return "%09i" % int(bits)
-
-    def _parse_lat(self, bits):
-        result = self._parse_latlong(bits)
-        if result != 91.0:
-            return result
-
-    def _parse_lon(self, bits):
-        result = self._parse_latlong(bits)
-        if result != 181.0:
-            return result
-
-    def _parse_latlong(self, bits):
-        def twos_comp(val, length):
-            if (val & (1 << (length - 1))) != 0:  # if sign bit is set e.g., 8bit: 128-255
-                val = val - (1 << length)  # compute negative value
-            return val
-
-        out = twos_comp(int(bits), len(bits))
-        result = float("%.4f" % (out / 60.0 / 10000.0))
-        return result
 
 
 

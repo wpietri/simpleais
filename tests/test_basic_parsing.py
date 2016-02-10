@@ -54,7 +54,7 @@ class TestBasicParsing(TestCase):
     def test_round_trip_for_single_fragment(self):
         text = '!ABVDM,1,1,,A,15NaEPPP01oR`R6CC?<j@gvr0<1C,0*1F'
         sentence = simpleais.parse(text)
-        self.assertEqual(text, sentence.text)
+        self.assertEqual(text, sentence.text[0])
 
     def test_round_trip_for_multiple_fragments(self):
         sentence = simpleais.parse(fragmented_message_type_8)[0]
@@ -208,3 +208,4 @@ class TestNameParsing(TestCase):
         m = parse(['!AIVDM,2,1,7,B,54`Ut;l2CO<P?H53<010DL5=E>1HuT4LE800001@LHi,0*12',
                    '!AIVDM,2,2,7,B,JF6uF0G1H40C0000000000000000,2*50'])[0]
         self.assertEqual('PEGASUS VOYAGER', m['shipname'])
+

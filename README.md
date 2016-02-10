@@ -27,4 +27,7 @@ Contributions welcome.
 
 My main source for protocol information is here: http://catb.org/gpsd/AIVDM.html
 
+More protocol info is here: http://www.itu.int/dms_pubrec/itu-r/rec/m/R-REC-M.1371-5-201402-I!!PDF-E.pdf
+
 The protocol checksum is here: https://en.wikipedia.org/wiki/NMEA_0183
+
