@@ -303,6 +303,8 @@ def info(sources, individual, show_map):
     map_info = DensityMap()
 
     for sentence in sentences_from_sources(sources):
+        if not sentence.check():
+            continue
         sentences_info.add(sentence)
         if show_map:
             loc = sentence.location()
