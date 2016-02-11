@@ -22,8 +22,73 @@ tests/sample.ais.
 
 Contributions welcome.
 
+## Library usage
 
-### Sources
+Here's an example, a simplified version of the `aist` tool, which prints one line per complete
+AIS message:
+
+    for sentence in sentences_from_sources(sources):
+        result = []
+        if sentence.time:
+            result.append(sentence.time.strftime(TIME_FORMAT))
+        result.append("{:2}".format(sentence.type_id()))
+        result.append("{:9}".format(str(sentence['mmsi'])))
+        location = sentence.location()
+        if location:
+            result.append("{:9.4f} {:9.4f}".format(location[0], location[1]))
+        if sentence.type_id() == 5:
+            result.append("{}->{}".format(sentence['shipname'], sentence['destination']))
+
+        print(" ".join(result))
+
+The `sentence_from_sources()` function will pull from a wide variety of sources (local files,
+serial ports, HTTP URLs), yielding only complete sentences as they arrive. Each sentence has
+a wide variety of readable information. Documented fields can all be referred to by name.
+For example, `sentence['mmsi']` or `sentence['shipname']`. The `location()` method will return
+a tuple of the form `(longitude, latitude)`. Missing or invalid fields will return `None`.
+
+
+## Command-line usage
+
+Suppose you have a file with a bunch of AIS data from the San Francisco area. You'd like to pull
+out location transmissions from various sorts of ships and then plot a map of signal density.
+Further, you'd like to mark the locations of Fort Point and Fort Mason just so you have some idea
+of what you're seeing. To do that, you can use aisgrep to get the relevant packets and aisinfo to
+plot the map:
+
+    $ aisgrep -t 1 -t 2 -t 3 -t 5 -t 18 -t 19 bayarea.ais | \
+    aisinfo -m -p -122.432144 37.806506 -p -122.477504 37.810848
+    
+    Found 50 senders in 13539 sentences.
+          top left: -122.9261, 37.9233
+      bottom right: -122.3013, 37.5967
+             width: 55.06 km
+            height: 36.33 km
+    +------------------------------------------------------------+
+    |                                            .   .           |
+    |                                                 .          |
+    |                                               .  .         |
+    |                                         .. ... ....        |
+    |                                           1.........       |
+    |                                           ............     |
+    |                                         ..*....29... .     |
+    |        .                            ......   .* ......    .|
+    |              .                 ......                     .|
+    |              ...... .   ........                           |
+    |                      ......                                |
+    |                      ...                                   |
+    |                   ... ..                                   |
+    |                 ..    .                                    |
+    |                .      .                                    |
+    |           .           .                                    |
+    |          ..                                                |
+    |                                                            |
+    |                                                            |
+    |.                                                           |
+    +------------------------------------------------------------+
+
+
+## Sources
 
 My main source for protocol information is here: http://catb.org/gpsd/AIVDM.html
 
