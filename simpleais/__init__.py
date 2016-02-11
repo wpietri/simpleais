@@ -218,35 +218,35 @@ class FieldDecoder:
         self.end = end
         self.bit_range = slice(start, end + 1)
         self.description = description
-        self.patch_decoder(data_type)
+        self._decode = self._appropriate_decoder(data_type)
 
-    def patch_decoder(self, data_type):
+    def _appropriate_decoder(self, data_type):
         if self.name == 'mmsi':
-            self._decode = self._parse_mmsi
+            return self._parse_mmsi
         elif self.name == 'lon':
-            self._decode = self._parse_lon
+            return self._parse_lon
         elif self.name == 'lat':
-            self._decode = self._parse_lat
+            return self._parse_lat
         elif data_type == 't' or data_type == 's':
-            self._decode = self._parse_text
+            return self._parse_text
         elif data_type == 'I3':
-            self._decode = lambda b: self._scaled_integer(b, 3)
+            return lambda b: self._scaled_integer(b, 3)
         elif data_type == 'I1':
-            self._decode = lambda b: self._scaled_integer(b, 1)
+            return lambda b: self._scaled_integer(b, 1)
         elif data_type == 'I4':
-            self._decode = lambda b: self._scaled_integer(b, 4)
+            return lambda b: self._scaled_integer(b, 4)
         elif data_type == 'u':
-            self._decode = lambda b: int(b)
+            return lambda b: int(b)
         elif data_type == 'd':
-            self._decode = lambda b: b
+            return lambda b: b
         elif data_type == 'U1':
-            self._decode = lambda b: int(b) / 10.0
+            return lambda b: int(b) / 10.0
         elif data_type == 'e':
-            self._decode = lambda b: "enum-{}".format(int(b))  # TODO: find and include enumerated types
+            return lambda b: "enum-{}".format(int(b))  # TODO: find and include enumerated types
         elif data_type == 'b':
-            self._decode = lambda b: b == 1
+            return lambda b: b == 1
         elif data_type == 'x':
-            self._decode = lambda b: int(b)
+            return lambda b: int(b)
         else:
             raise ValueError("Sorry, don't know how to parse '{}' for field '{}' yet".format(data_type, self.name))
 
@@ -473,24 +473,26 @@ def lines_from_source(source):
 
 def fragments_from_source(source):
     for line in lines_from_source(source):
+        # noinspection PyBroadException
         try:
             m = aivdm_pattern.search(line)
             if m:
                 yield m.group(0)
             else:
                 logging.getLogger().warn("skipped: \"{}\"".format(line.strip()))
-        except Exception as e:
+        except Exception:
             logging.getLogger().error("unexpected failure for line {} in source {}".format(line, source), exc_info=True)
 
 
 def sentences_from_source(source):
     parser = StreamParser()
     for fragment in fragments_from_source(source):
+        # noinspection PyBroadException
         try:
             parser.add(fragment)
             if parser.has_sentence():
                 yield parser.next_sentence()
-        except Exception as e:
+        except Exception:
             logging.getLogger().error("unexpected failure for fragment {} in source {}".format(fragment, source),
                                       exc_info=True)
 
@@ -500,6 +502,7 @@ def _handle_serial_source(source):
     import serial
 
     while True:
+        # noinspection PyBroadException
         try:
             with serial.Serial(source, 38400, timeout=10) as f:
                 while True:
@@ -517,11 +520,12 @@ def _handle_url_source(source):
     import urllib.request
 
     while True:
+        # noinspection PyBroadException
         try:
             with urllib.request.urlopen(source) as f:
                 for line in f:
                     yield line.decode('utf-8')
-        except Exception as e:
+        except Exception:
             logging.getLogger().error("unexpected failure in source {}".format(source), exc_info=True)
             sleep(1)
 

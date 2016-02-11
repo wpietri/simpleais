@@ -53,11 +53,12 @@ def cat(sources):
 @click.command()
 @click.argument('sources', nargs=-1)
 @click.option('--mmsi', '-m', multiple=True)
-@click.option('--mmsi-file', '-f')
-@click.option('--type', '-t', 'sentence_type', type=int)
+@click.option('--mmsi-file')
+@click.option('--type', '-t', 'sentence_type', type=int, multiple=True)
 @click.option('--longitude', '--long', '--lon', nargs=2, type=float)
 @click.option('--latitude', '--lat', nargs=2, type=float)
-def grep(sources, mmsi=None, mmsi_file=None, sentence_type=None, lon=None, lat=None):
+@click.option('--field', '-f', multiple=True)
+def grep(sources, mmsi=None, mmsi_file=None, sentence_type=None, lon=None, lat=None, field=None):
     if not mmsi:
         mmsi = []
     if mmsi_file:
@@ -72,12 +73,14 @@ def grep(sources, mmsi=None, mmsi_file=None, sentence_type=None, lon=None, lat=N
             if len(mmsi) > 0:
                 factors.append(sentence['mmsi'] in mmsi)
             if sentence_type:
-                factors.append(sentence.type_id() == sentence_type)
-            if lon:
-                factors.append(sentence['lon'] and lon[0] < sentence['lon'] < lon[1])
-            if lat:
-                factors.append(sentence['lat'] and lat[0] < sentence['lat'] < lat[1])
-
+                factors.append(sentence.type_id() in sentence_type)
+            if lon and sentence.location():
+                factors.append(lon[0] < sentence['lon'] < lon[1])
+            if lat and sentence.location():
+                factors.append(lat[0] < sentence['lat'] < lat[1])
+            if field:
+                for f in field:
+                    factors.append(sentence[f] is not None)
             if functools.reduce(lambda x, y: x and y, factors):
                 print_sentence_source(sentence.text)
 
@@ -92,14 +95,17 @@ def as_text(sources):
                 result.append(sentence.time.strftime(TIME_FORMAT))
             result.append("{:2}".format(sentence.type_id()))
             result.append("{:9}".format(str(sentence['mmsi'])))
+            if sentence['dest_mmsi']:
+                result.append("-> {:9}".format(str(sentence['dest_mmsi'])))
             location = sentence.location()
             if location:
                 result.append("{:9.4f} {:9.4f}".format(location[0], location[1]))
             if sentence.type_id() == 5:
                 result.append("{}->{}".format(sentence['shipname'], sentence['destination']))
-            elif sentence.type_id() == 24:
+            elif sentence.type_id() in [12, 14]:
+                result.append("{}".format(sentence['text']))
+            elif sentence.type_id() == 24 and sentence['partno'] == 0:
                 result.append("{}".format(sentence['shipname']))
-
 
             print(" ".join(result))
 
@@ -323,7 +329,7 @@ class DensityMap:
             elif value == 0:
                 return " "
             else:
-                c = str(int((9.99999) * value / max_count))
+                c = str(int(9.99999 * value / max_count))
                 if c == '0':
                     return '.'
                 return c
