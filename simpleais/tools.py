@@ -1,5 +1,6 @@
 from collections import defaultdict
 import functools
+from math import radians, sin, atan2, sqrt, cos
 import os
 import sys
 import re
@@ -187,8 +188,10 @@ class GeoInfo:
         self.lat.add(point[1])
 
     def report(self, indent=""):
-        print("{}    top left: {}, {}".format(indent, self.lat.max, self.lon.min))
-        print("{}bottom right: {}, {}".format(indent, self.lat.min, self.lon.max))
+        print("{}    top left: {:.4f}, {:.4f}".format(indent, self.lon.max, self.lat.min))
+        print("{}bottom right: {:.4f}, {:.4f}".format(indent, self.lon.min, self.lat.max))
+        print("{}       width: {:.2f} km".format(indent, distance((self.lon.min, self.lat.min),(self.lon.max, self.lat.min))))
+        print("{}      height: {:.2f} km".format(indent, distance((self.lon.min, self.lat.min),(self.lon.min, self.lat.max))))
 
     def __str__(self, *args, **kwargs):
         return "GeoInfo(latmin={}, latmax={}, lonmin={}, lonmax={})".format(self.lat.min, self.lat.max,
@@ -197,6 +200,22 @@ class GeoInfo:
     def valid(self):
         return self.lon.valid() and self.lat.valid()
 
+def distance(p1, p2):
+    r = 6373.0
+
+    lon1 = radians(p1[0])
+    lat1 = radians(p1[1])
+    lon2 = radians(p2[0])
+    lat2 = radians(p2[1])
+
+    dlon = lon2 - lon1
+    dlat = lat2 - lat1
+
+    a = sin(dlat / 2)**2 + cos(lat1) * cos(lat2) * sin(dlon / 2)**2
+    c = 2 * atan2(sqrt(a), sqrt(1 - a))
+
+    d = r * c
+    return d
 
 class SentencesInfo:
     def __init__(self):
@@ -216,11 +235,13 @@ class SentencesInfo:
 
     def report(self):
         print("Found {} senders in {} sentences.".format(len(self.sender_counts), self.sentence_count))
-        print("   type counts:")
-        for i in sorted(self.type_counts):
-            print("                {:2d} {:8d}".format(i, self.type_counts[i]))
-        print()
-        self.geo_info.report("  ")
+        if self.sentence_count>0:
+            print("   type counts:")
+            for i in sorted(self.type_counts):
+                print("                {:2d} {:8d}".format(i, self.type_counts[i]))
+            print()
+            if self.geo_info.valid():
+                self.geo_info.report("  ")
 
 
 class Bucketer:
@@ -255,21 +276,32 @@ class DensityMap:
         self.indent = indent
         self.geo_info = GeoInfo()
         self.points = []
+        self.marks = []
 
     def add(self, point):
         self.points.append(point)
         self.geo_info.add(point)
 
+    def bucket(self, points):
+        xb = Bucketer(self.geo_info.lon.min, self.geo_info.lon.max, self.width)
+        yb = Bucketer(self.geo_info.lat.min, self.geo_info.lat.max, self.height)
+        result = []
+        for point in points:
+            x = xb.bucket(point[0])
+            y = self.height - 1 - yb.bucket(point[1])
+            result.append((x,y))
+        return result
+
     def to_counts(self):
         # noinspection PyUnusedLocal
         results = [[0 for ignored in range(self.width)] for ignored in range(self.height)]
         if self.geo_info.valid():
-            xb = Bucketer(self.geo_info.lon.min, self.geo_info.lon.max, self.width)
-            yb = Bucketer(self.geo_info.lat.min, self.geo_info.lat.max, self.height)
-            for lon, lat in self.points:
-                x = xb.bucket(lon)
-                y = self.height - 1 - yb.bucket(lat)
+            for x, y in self.bucket(self.points):
                 results[y][x] += 1
+
+            for x,y in self.bucket(self.marks):
+                results[y][x] = -1
+
         return results
 
     def to_text(self):
@@ -278,29 +310,45 @@ class DensityMap:
         max_count = max([max(l) for l in counts])
 
         def value_to_text(value):
-            if value == 0:
+            if value == -1:
+                return "*"
+            elif value == 0:
                 return " "
-            return str(int((9.99999) * value / max_count))
+            else:
+                c = str(int((9.99999) * value / max_count))
+                if c == '0':
+                    return '.'
+                return c
 
         output = []
-        output.append("{}+{}+".format(self.indent, "-" * self.width))
+        header_footer_line = "{}+{}+".format(self.indent, "-" * self.width)
+        output.append(header_footer_line)
         for row in counts:
-            output.append("{}|{}|".format(self.indent, "".join([value_to_text(col) for col in row])))
-        output.append("{}+{}+".format(self.indent, "-" * self.width))
+            line = []
+            for col in row:
+                line.append(value_to_text(col))
+            output.append("{}|{}|".format(self.indent, "".join(line)))
+        output.append(header_footer_line)
         return output
 
     def show(self):
         print("\n".join(self.to_text()))
+
+    def mark(self, point):
+        self.marks.append(point)
 
 
 @click.command()
 @click.argument('sources', nargs=-1)
 @click.option('--individual', '-i', is_flag=True)
 @click.option('--map', '-m', "show_map", is_flag=True)
-def info(sources, individual, show_map):
+@click.option('--point', '-p', nargs=2, type=float)
+def info(sources, individual, show_map, point):
     sentences_info = SentencesInfo()
     sender_info = defaultdict(SenderInfo)
     map_info = DensityMap()
+    if point:
+        map_info.mark(point)
 
     for sentence in sentences_from_sources(sources):
         if not sentence.check():

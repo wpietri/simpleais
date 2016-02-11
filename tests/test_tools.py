@@ -141,6 +141,19 @@ class TestDensityMap(TestCase):
             '+----+',
         ], m.to_text())
 
+    def test_mark(self):
+        m = DensityMap(3, 3)
+        m.add((-1, -1))
+        m.add((1, 1))
+        m.mark((0, 0))
+        self.assertListEqual([
+            '+---+',
+            '|  9|',
+            '| * |',
+            '|9  |',
+            '+---+',
+        ], m.to_text())
+
 
 class TestBucketer(TestCase):
     def test_basics(self):
