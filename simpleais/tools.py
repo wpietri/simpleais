@@ -97,6 +97,8 @@ def as_text(sources):
             result.append("{:9}".format(str(sentence['mmsi'])))
             if sentence['dest_mmsi']:
                 result.append("-> {:9}".format(str(sentence['dest_mmsi'])))
+            if sentence.type_id() == 21:
+                result.append("{}".format(sentence['name']))
             location = sentence.location()
             if location:
                 result.append("{:9.4f} {:9.4f}".format(location[0], location[1]))
@@ -233,7 +235,7 @@ def distance(p1, p2):
 
 
 class SentencesInfo:
-    def __init__(self):
+    def __init__(self, by_type=False):
         self.sentence_count = 0
         self.type_counts = defaultdict(int)
         self.sender_counts = defaultdict(int)
@@ -241,7 +243,8 @@ class SentencesInfo:
 
     def add(self, sentence):
         self.sentence_count += 1
-        self.type_counts[sentence.type_id()] += 1
+        if self.type_counts:
+            self.type_counts[sentence.type_id()] += 1
         self.sender_counts[sentence['mmsi']] += 1
         loc = sentence.location()
         if loc:
@@ -250,10 +253,11 @@ class SentencesInfo:
     def report(self):
         print("Found {} senders in {} sentences.".format(len(self.sender_counts), self.sentence_count))
         if self.sentence_count > 0:
-            print("   type counts:")
-            for i in sorted(self.type_counts):
-                print("                {:2d} {:8d}".format(i, self.type_counts[i]))
-            print()
+            if self.type_counts:
+                print("   type counts:")
+                for i in sorted(self.type_counts):
+                    print("                {:2d} {:8d}".format(i, self.type_counts[i]))
+                print()
             if self.geo_info.valid():
                 self.geo_info.report("  ")
 
@@ -356,13 +360,15 @@ class DensityMap:
 @click.argument('sources', nargs=-1)
 @click.option('--individual', '-i', is_flag=True)
 @click.option('--map', '-m', "show_map", is_flag=True)
-@click.option('--point', '-p', nargs=2, type=float)
-def info(sources, individual, show_map, point):
-    sentences_info = SentencesInfo()
+@click.option('--by-type', '-t', is_flag=True)
+@click.option('--point', '-p', type=(float, float), multiple=True)
+def info(sources, individual, by_type, show_map, point):
+    sentences_info = SentencesInfo(by_type)
     sender_info = defaultdict(SenderInfo)
     map_info = DensityMap()
     if point:
-        map_info.mark(point)
+        for p in point:
+            map_info.mark(p)
 
     for sentence in sentences_from_sources(sources):
         if not sentence.check():
