@@ -81,8 +81,7 @@ class TestFieldLookup(TestCase):
         self.assertEqual(Bits('0001100000001010011'), radio_status.bits())
 
         # NB: Radio status is actually way more complicated than this. See
-        # 3.3.7.2.2 and 3.3.7.3.2 in ITU-R M.1371-5 if you'd like to
-        # interpret it fully.
+        # 3.3.7.2.2 and 3.3.7.3.2 in ITU-R M.1371-5 to interpret it fully.
 
     def test_known_and_unknown_fields(self):
         m = simpleais.parse('!ABVDM,1,1,,A,15NaEPPP01oR`R6CC?<j@gvr0<1C,0*1F')

@@ -133,6 +133,14 @@ class TestStreamParser(TestCase):
         self.assertEqual(8, p.next_sentence().type_id())
         self.assertFalse(p.has_sentence())
 
+    def test_partial_sentence_yields_nothing(self):
+        p = StreamParser()
+        p.add('!ABVDM,2,1,8,B,55NV>k000001L@SGCC4Dp@D5Hu800000000000001PF5300Ht023kA@00000,0*33')
+        self.assertFalse(p.has_sentence())
+
+        p = StreamParser()
+        p.add('!AIVDM,2,2,6,A,00000000000,2*22')
+        self.assertFalse(p.has_sentence())
 
 class TestFragmentPool(TestCase):
     def __init__(self, method_name='runTest'):
@@ -187,6 +195,11 @@ class TestFragmentPool(TestCase):
         f.add(fragments[4])
         self.assertTrue(f.has_full_sentence())
         f.pop_full_sentence()
+
+    def test_trailing_fragment(self):
+        f = FragmentPool()
+        f.add(parse('!AIVDM,2,2,6,A,00000000000,2*22'))
+        self.assertFalse(f.has_full_sentence())
 
 
 class TestNmeaPayload(TestCase):

@@ -92,10 +92,14 @@ def as_text(sources):
                 result.append(sentence.time.strftime(TIME_FORMAT))
             result.append("{:2}".format(sentence.type_id()))
             result.append("{:9}".format(str(sentence['mmsi'])))
-            if sentence['lat']:
-                result.append("{:9.4f} {:9.4f}".format(sentence['lat'], sentence['lon']))
-            elif sentence.type_id() == 5:
+            location = sentence.location()
+            if location:
+                result.append("{:9.4f} {:9.4f}".format(location[0], location[1]))
+            if sentence.type_id() == 5:
                 result.append("{}->{}".format(sentence['shipname'], sentence['destination']))
+            elif sentence.type_id() == 24:
+                result.append("{}".format(sentence['shipname']))
+
 
             print(" ".join(result))
 
@@ -189,8 +193,8 @@ class GeoInfo:
         self.lat.add(point[1])
 
     def report(self, indent=""):
-        print("{}    top left: {:.4f}, {:.4f}".format(indent, self.lon.max, self.lat.min))
-        print("{}bottom right: {:.4f}, {:.4f}".format(indent, self.lon.min, self.lat.max))
+        print("{}    top left: {:.4f}, {:.4f}".format(indent, self.lon.min, self.lat.max))
+        print("{}bottom right: {:.4f}, {:.4f}".format(indent, self.lon.max, self.lat.min))
         print("{}       width: {:.2f} km".format(indent,
                                                  distance((self.lon.min, self.lat.min), (self.lon.max, self.lat.min))))
         print("{}      height: {:.2f} km".format(indent,

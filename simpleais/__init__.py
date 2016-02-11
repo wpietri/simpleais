@@ -423,8 +423,9 @@ class Sentence:
 
 class FragmentPool:
     """
-    A smart holder for SentenceFragments that can tell when
-    a valid message has been found.
+    A smart holder for SentenceFragments that can tell when a valid message has been found.
+    Unlike TCP fragments, AIS fragments arrive in order and soon, so this can be aggressive
+    in discarding odd socks.
     """
 
     def __init__(self):
@@ -441,11 +442,18 @@ class FragmentPool:
         self.full_sentence = None
         return result
 
+    def _has_complete_fragment_set(self):
+        actual = sorted([f.fragment_number for f in self.fragments])
+        expected = list(range(1, self.fragments[0].total_fragments + 1))
+        return actual == expected
+
     def add(self, fragment):
         if len(self.fragments) > 0 and not fragment.follows(self.fragments[-1]):
             self.fragments.clear()
+
         self.fragments.append(fragment)
-        if fragment.last():
+
+        if fragment.last() and self._has_complete_fragment_set():
             self.full_sentence = Sentence.from_fragments(self.fragments)
             self.fragments.clear()
 
