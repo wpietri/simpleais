@@ -41,6 +41,7 @@ def sentences_from_sources(sources):
         for sentence in sentences_from_source(sys.stdin):
             yield sentence
 
+
 @click.command()
 @click.argument('sources', nargs=-1)
 def cat(sources):
@@ -190,8 +191,10 @@ class GeoInfo:
     def report(self, indent=""):
         print("{}    top left: {:.4f}, {:.4f}".format(indent, self.lon.max, self.lat.min))
         print("{}bottom right: {:.4f}, {:.4f}".format(indent, self.lon.min, self.lat.max))
-        print("{}       width: {:.2f} km".format(indent, distance((self.lon.min, self.lat.min),(self.lon.max, self.lat.min))))
-        print("{}      height: {:.2f} km".format(indent, distance((self.lon.min, self.lat.min),(self.lon.min, self.lat.max))))
+        print("{}       width: {:.2f} km".format(indent,
+                                                 distance((self.lon.min, self.lat.min), (self.lon.max, self.lat.min))))
+        print("{}      height: {:.2f} km".format(indent,
+                                                 distance((self.lon.min, self.lat.min), (self.lon.min, self.lat.max))))
 
     def __str__(self, *args, **kwargs):
         return "GeoInfo(latmin={}, latmax={}, lonmin={}, lonmax={})".format(self.lat.min, self.lat.max,
@@ -199,6 +202,7 @@ class GeoInfo:
 
     def valid(self):
         return self.lon.valid() and self.lat.valid()
+
 
 def distance(p1, p2):
     r = 6373.0
@@ -211,11 +215,12 @@ def distance(p1, p2):
     dlon = lon2 - lon1
     dlat = lat2 - lat1
 
-    a = sin(dlat / 2)**2 + cos(lat1) * cos(lat2) * sin(dlon / 2)**2
+    a = sin(dlat / 2) ** 2 + cos(lat1) * cos(lat2) * sin(dlon / 2) ** 2
     c = 2 * atan2(sqrt(a), sqrt(1 - a))
 
     d = r * c
     return d
+
 
 class SentencesInfo:
     def __init__(self):
@@ -223,7 +228,6 @@ class SentencesInfo:
         self.type_counts = defaultdict(int)
         self.sender_counts = defaultdict(int)
         self.geo_info = GeoInfo()
-
 
     def add(self, sentence):
         self.sentence_count += 1
@@ -235,7 +239,7 @@ class SentencesInfo:
 
     def report(self):
         print("Found {} senders in {} sentences.".format(len(self.sender_counts), self.sentence_count))
-        if self.sentence_count>0:
+        if self.sentence_count > 0:
             print("   type counts:")
             for i in sorted(self.type_counts):
                 print("                {:2d} {:8d}".format(i, self.type_counts[i]))
@@ -289,7 +293,7 @@ class DensityMap:
         for point in points:
             x = xb.bucket(point[0])
             y = self.height - 1 - yb.bucket(point[1])
-            result.append((x,y))
+            result.append((x, y))
         return result
 
     def to_counts(self):
@@ -299,7 +303,7 @@ class DensityMap:
             for x, y in self.bucket(self.points):
                 results[y][x] += 1
 
-            for x,y in self.bucket(self.marks):
+            for x, y in self.bucket(self.marks):
                 results[y][x] = -1
 
         return results
