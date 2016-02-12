@@ -10,7 +10,7 @@ from contextlib import contextmanager
 import click
 import numpy
 
-from . import sentences_from_source
+from simpleais import sentences_from_source
 
 TIME_FORMAT = "%Y/%m/%d %H:%M:%S"
 
@@ -72,12 +72,13 @@ def likes(field, lat, lon, mmsi, sentence, sentence_type):
 class Taster(object):
     pass
 
-    def __init__(self, mmsi=None, sentence_type=None, lon=None, lat=None, field=None):
+    def __init__(self, mmsi=None, sentence_type=None, lon=None, lat=None, field=None, checksum=None):
         self.mmsi = mmsi
         self.sentence_type = sentence_type
         self.lon = lon
         self.lat = lat
         self.field = field
+        self.checksum = checksum
 
     def likes(self, sentence):
         factors = [True]
@@ -92,6 +93,8 @@ class Taster(object):
         if self.field:
             for f in self.field:
                 factors.append(sentence[f] is not None)
+        if self.checksum is not None:
+            factors.append(sentence.check() == self.checksum)
         return functools.reduce(lambda x, y: x and y, factors)
 
 
@@ -103,7 +106,8 @@ class Taster(object):
 @click.option('--longitude', '--long', '--lon', nargs=2, type=float)
 @click.option('--latitude', '--lat', nargs=2, type=float)
 @click.option('--field', '-f', multiple=True)
-def grep(sources, mmsi=None, mmsi_file=None, sentence_type=None, lon=None, lat=None, field=None):
+@click.option('--checksum', type=click.Choice(['valid', 'invalid']))
+def grep(sources, mmsi=None, mmsi_file=None, sentence_type=None, lon=None, lat=None, field=None, checksum=None):
     if not mmsi:
         mmsi = []
     if mmsi_file:
@@ -111,7 +115,11 @@ def grep(sources, mmsi=None, mmsi_file=None, sentence_type=None, lon=None, lat=N
         with open(mmsi_file, "r") as f:
             mmsi.extend([l.strip() for l in f.readlines()])
         mmsi = frozenset(mmsi)
-    taster = Taster(mmsi, sentence_type, lon, lat, field)
+    if checksum is None:
+        checksum_desire = None
+    else:
+        checksum_desire = checksum == "valid"
+    taster = Taster(mmsi, sentence_type, lon, lat, field, checksum_desire)
     for sentence in sentences_from_sources(sources):
         with wild_disregard_for(BrokenPipeError):
             if taster.likes(sentence):
@@ -273,24 +281,20 @@ def distance(p1, p2):
 
 class SentencesInfo:
     def __init__(self, by_type=False):
+        self.by_type = by_type
         self.sentence_count = 0
         self.time_range = MaxMin()
-        self.type_counts = None
         if by_type:
             self.type_counts = defaultdict(int)
         self.sender_counts = defaultdict(int)
-        self.geo_info = GeoInfo()
 
     def add(self, sentence):
         self.sentence_count += 1
         if sentence.time:
             self.time_range.add(sentence.time.timestamp())
-        if self.type_counts:
+        if self.by_type:
             self.type_counts[sentence.type_id()] += 1
         self.sender_counts[sentence['mmsi']] += 1
-        loc = sentence.location()
-        if loc:
-            self.geo_info.add(loc)
 
     def report(self):
         print("Found {} senders in {} sentences.".format(len(self.sender_counts), self.sentence_count))
@@ -302,13 +306,11 @@ class SentencesInfo:
                 h, m, s))
 
         if self.sentence_count > 0:
-            if self.type_counts:
+            if self.by_type:
                 print("   type counts:")
                 for i in sorted(self.type_counts):
                     print("                {:2d} {:8d}".format(i, self.type_counts[i]))
                 print()
-            if self.geo_info.valid():
-                self.geo_info.report("  ")
 
 
 class Bucketer:
@@ -414,6 +416,8 @@ class DensityMap:
 def info(sources, individual, by_type, show_map, point):
     sentences_info = SentencesInfo(by_type)
     sender_info = defaultdict(SenderInfo)
+    geo_info = GeoInfo()
+
     map_info = DensityMap()
     if point:
         for p in point:
@@ -423,15 +427,22 @@ def info(sources, individual, by_type, show_map, point):
         if not sentence.check():
             continue
         sentences_info.add(sentence)
-        if show_map:
-            loc = sentence.location()
-            if loc:
+
+        loc = sentence.location()
+        if loc:
+            geo_info.add(loc)
+            if show_map:
                 map_info.add(loc)
+
         if individual:
             sender_info[sentence['mmsi']].add(sentence)
 
     with wild_disregard_for(BrokenPipeError):
         sentences_info.report()
+
+        if geo_info.valid():
+            geo_info.report("  ")
+
         if show_map:
             map_info.show()
 
@@ -480,3 +491,7 @@ def dump(sources, bits):
                     print("  {:>12}: {} ({})".format(field.name(), value, field.bits()))
                 else:
                     print("  {:>12}: {}".format(field.name(), value))
+
+# used only for profiling
+if __name__ == "__main__":
+    grep(["../tests/sample.ais", "-t", "20"])

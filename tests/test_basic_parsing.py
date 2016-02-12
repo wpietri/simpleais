@@ -68,7 +68,7 @@ class TestBasicParsing(TestCase):
 
     def test_checksum_validation_for_multiple_fragment_sentences(self):
         good_and_bad_1 = parse("!AIVDM,2,1,6,B,55NEA8T00001L@GC7WT4h<5A85b0<hU10E:2000t1@`56t0Ht04hC`1TPCPj,0*10")
-        good_and_bad_2 = parse("!AIVDM,2,2,6,B,Dhkh0000000,2*0E")
+        good_and_bad_2 = parse("!AIVDM,2,2,6,B,Dhkh0000000,2*0F")
         self.assertTrue(good_and_bad_1.check())
         self.assertFalse(good_and_bad_2.check())
         good_and_bad = Sentence.from_fragments([good_and_bad_1, good_and_bad_2])

@@ -239,6 +239,23 @@ class TestTaster(TestCase):
         taster = Taster(lat=(0, 90))
         self.assertFalse(taster.likes(self.type_5))
 
+    def test_checksum_filter(self):
+        good = parse("!AIVDM,1,1,,B,3;hw29cc6<<1qABsuhLN>=5ws`Qo,0*4C")
+        bad = parse("!AIVDM,1,1,,B,3;hw29cc6<<1qABsuhLN>=5ws`Qo,0*4B")
+
+        taster = Taster(checksum=None)
+        self.assertTrue(taster.likes(good))
+        self.assertTrue(taster.likes(bad))
+
+        taster = Taster(checksum=True)
+        self.assertTrue(taster.likes(good))
+        self.assertFalse(taster.likes(bad))
+
+        taster = Taster(checksum=False)
+        self.assertFalse(taster.likes(good))
+        self.assertTrue(taster.likes(bad))
+
+
 
 from click.testing import CliRunner
 

@@ -1,6 +1,5 @@
 import collections
 from functools import reduce
-import functools
 from io import TextIOBase
 import json
 import logging
@@ -102,6 +101,14 @@ def parse_many(messages):
     return result
 
 
+# based on https://en.wikipedia.org/wiki/NMEA_0183
+def nmea_checksum(content):
+    result = 0
+    for c in content:
+        result = result ^ ord(c)
+    return result
+
+
 def parse_one(string):
     m = aivdm_pattern.search(string)
     if not m:
@@ -121,9 +128,7 @@ def parse_one(string):
     fragment_count = int(fields[1])
     radio_channel = fields[4]
     payload = NmeaPayload(fields[5], int(fields[6]))
-    # based on https://en.wikipedia.org/wiki/NMEA_0183
-    calculated_checksum = hex(functools.reduce(lambda a, b: a ^ b, [ord(c) for c in content]))[2:4]
-    checksum_valid = calculated_checksum.upper() == checksum
+    checksum_valid = nmea_checksum(content) == int(checksum, 16)
     if fragment_count == 1:
         return Sentence(talker, sentence_type, radio_channel, payload, [checksum_valid], time, [string])
     else:
@@ -277,7 +282,7 @@ class FieldDecoder:
 
     def _scaled_integer(self, bits, scale):
         out = self._twos_comp(int(bits), len(bits))
-        result = float(("%." + str(scale) + "f") % (out / 60.0 / (10 ** scale)))
+        result = round(out / 60 / (10 ** scale), 4)
         return result
 
     def _parse_text(self, bits):
