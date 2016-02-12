@@ -6,7 +6,7 @@ from simpleais.tools import *
 
 class TestDensityMap(TestCase):
     def test_empty(self):
-        m = DensityMap(3, 3)
+        m = DensityMap(3)
         self.assertListEqual([
             '+---+',
             '|   |',
@@ -16,7 +16,7 @@ class TestDensityMap(TestCase):
         ], m.to_text())
 
     def test_corners(self):
-        m = DensityMap(3, 3)
+        m = DensityMap(3, height_scale=1)
         m.add((0, 0))
         m.add((1, 1))
         self.assertListEqual([
@@ -28,7 +28,7 @@ class TestDensityMap(TestCase):
         ], m.to_text())
 
     def test_other_corners(self):
-        m = DensityMap(3, 3)
+        m = DensityMap(3, height_scale=1)
         m.add((0, 0))
         m.add((1, -1))
         self.assertListEqual([
@@ -40,7 +40,7 @@ class TestDensityMap(TestCase):
         ], m.to_text())
 
     def test_point(self):
-        m = DensityMap(3, 3)
+        m = DensityMap(3)
         m.add((0, 0))
         self.assertListEqual([
             '+---+',
@@ -51,7 +51,7 @@ class TestDensityMap(TestCase):
         ], m.to_text())
 
     def test_line(self):
-        m = DensityMap(3, 3)
+        m = DensityMap(3)
         m.add((0, 0))
         m.add((1, 0))
         m.add((2, 0))
@@ -64,7 +64,7 @@ class TestDensityMap(TestCase):
         ], m.to_text())
 
     def test_plus(self):
-        m = DensityMap(3, 3)
+        m = DensityMap(3, height_scale=1)
         m.add((1, 0))
         m.add((0, -1))
         m.add((0, 0))
@@ -79,7 +79,7 @@ class TestDensityMap(TestCase):
         ], m.to_text())
 
     def test_x(self):
-        m = DensityMap(3, 3)
+        m = DensityMap(3, height_scale=1)
         m.add((1, -1))
         m.add((1, 1))
         m.add((0, 0))
@@ -94,7 +94,7 @@ class TestDensityMap(TestCase):
         ], m.to_text())
 
     def test_l(self):
-        m = DensityMap(3, 3)
+        m = DensityMap(3, height_scale=1)
         m.add((1, -1))
         m.add((0, -1))
         m.add((-1, -1))
@@ -109,7 +109,7 @@ class TestDensityMap(TestCase):
         ], m.to_text())
 
     def test_weight(self):
-        m = DensityMap(3, 3)
+        m = DensityMap(3, height_scale=1)
         m.add((1, 0))
         m.add((0, -1))
         m.add((0, 0))
@@ -128,22 +128,20 @@ class TestDensityMap(TestCase):
         ], m.to_text())
 
     def test_funky_example(self):
-        m = DensityMap(4, 4)
+        m = DensityMap(4, height_scale=1)
         m.add((-118.4680, 33.7419))
         m.add((-118.4677, 33.7418))
         m.add((-118.4675, 33.7417))
         m.add((-118.4672, 33.7415))
         self.assertListEqual([
             '+----+',
-            '|99  |',
-            '|  9 |',
-            '|    |',
+            '|999 |',
             '|   9|',
             '+----+',
         ], m.to_text())
 
     def test_mark(self):
-        m = DensityMap(3, 3)
+        m = DensityMap(3, height_scale=1)
         m.add((-1, -1))
         m.add((1, 1))
         m.mark((0, 0))

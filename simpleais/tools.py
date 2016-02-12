@@ -248,10 +248,14 @@ class GeoInfo:
     def report(self, indent=""):
         print("{}    top left: {:.4f}, {:.4f}".format(indent, self.lon.min, self.lat.max))
         print("{}bottom right: {:.4f}, {:.4f}".format(indent, self.lon.max, self.lat.min))
-        print("{}       width: {:.2f} km".format(indent,
-                                                 distance((self.lon.min, self.lat.min), (self.lon.max, self.lat.min))))
-        print("{}      height: {:.2f} km".format(indent,
-                                                 distance((self.lon.min, self.lat.min), (self.lon.min, self.lat.max))))
+        print("{}       width: {:.2f} km".format(indent, self.width()))
+        print("{}      height: {:.2f} km".format(indent, self.height()))
+
+    def width(self):
+        return distance((self.lon.min, self.lat.min), (self.lon.max, self.lat.min))
+
+    def height(self):
+        return distance((self.lon.min, self.lat.min), (self.lon.min, self.lat.max))
 
     def __str__(self, *args, **kwargs):
         return "GeoInfo(latmin={}, latmax={}, lonmin={}, lonmax={})".format(self.lat.min, self.lat.max,
@@ -351,9 +355,9 @@ class Bucketer:
 
 
 class DensityMap:
-    def __init__(self, width=60, height=20, indent=""):
-        self.width = width
-        self.height = height
+    def __init__(self, width=60, height_scale=0.5, indent=""):
+        self.desired_width = width
+        self.height_scale = height_scale  # terminal characters are about 2x tall as they are wide
         self.indent = indent
         self.geo_info = GeoInfo()
         self.points = []
@@ -364,25 +368,32 @@ class DensityMap:
         self.geo_info.add(point)
 
     def bucket(self, points):
-        xb = Bucketer(self.geo_info.lon.min, self.geo_info.lon.max, self.width)
-        yb = Bucketer(self.geo_info.lat.min, self.geo_info.lat.max, self.height)
+        xb = Bucketer(self.geo_info.lon.min, self.geo_info.lon.max, self.width())
+        yb = Bucketer(self.geo_info.lat.min, self.geo_info.lat.max, self.height())
         result = []
         for point in points:
             x = xb.bucket(point[0])
-            y = self.height - 1 - yb.bucket(point[1])
+            y = self.height() - 1 - yb.bucket(point[1])
             result.append((x, y))
         return result
 
+    def height(self):
+        if self.geo_info.valid() and self.geo_info.width() > 0 and self.geo_info.height() > 0:
+            return int(self.height_scale * self.geo_info.height() * self.width() / self.geo_info.width())
+        else:
+            return self.width()
+
+    def width(self):
+        return self.desired_width
+
     def to_counts(self):
         # noinspection PyUnusedLocal
-        results = [[0 for ignored in range(self.width)] for ignored in range(self.height)]
+        results = [[0 for ignored in range(self.width())] for ignored in range(self.height())]
         if self.geo_info.valid():
             for x, y in self.bucket(self.points):
                 results[y][x] += 1
-
             for x, y in self.bucket(self.marks):
                 results[y][x] = -1
-
         return results
 
     def to_text(self):
@@ -402,7 +413,7 @@ class DensityMap:
                 return c
 
         output = []
-        header_footer_line = "{}+{}+".format(self.indent, "-" * self.width)
+        header_footer_line = "{}+{}+".format(self.indent, "-" * self.width())
         output.append(header_footer_line)
         for row in counts:
             line = []
