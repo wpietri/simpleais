@@ -29,6 +29,13 @@ class TestPositionReports(TestCase):
         self.assertAlmostEquals(3.0226, m['lat'])
         self.assertIsNone(m.location())
 
+        # packet is too short, so no location should be available
+        m = simpleais.parse('1452655664.394 !AIVDM,1,1,,A,ECgb9OI9R@106jh`8@7Q3wmTkP06,0*3A')
+        self.assertEqual('251300221', m['mmsi'])
+        self.assertIsNone(m['lon'])
+        self.assertIsNone(m['lat'])
+        self.assertIsNone(m.location())
+
     def test_no_lat_or_lon(self):
         m = simpleais.parse('!ABVDM,1,1,,A,152MQ1qP?w<tSF0l4Q@>4?wp1p7G,0*78')
         self.assertEqual('338125063', m['mmsi'])

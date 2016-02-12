@@ -221,9 +221,11 @@ class FieldDecoder:
         self.name = name
         self.start = start
         self.end = end
+        self.length = 1 + end - start
         self.bit_range = slice(start, end + 1)
         self.description = description
         self._decode = self._appropriate_decoder(data_type, name)
+        self.short_bits_ok = data_type in ['s', 't']  # if we get partial text, that's better than nothing
 
     def _appropriate_decoder(self, data_type, name):
         if name == 'mmsi':
@@ -260,19 +262,21 @@ class FieldDecoder:
             raise ValueError("Sorry, don't know how to parse '{}' for field '{}' yet".format(data_type, self.name))
 
     def decode(self, bits):
-        return self._decode(bits[self.bit_range])
+        bits_to_decode = bits[self.bit_range]
+        if self.short_bits_ok or self.length == len(bits_to_decode):
+            return self._decode(bits_to_decode)
 
     def _parse_mmsi(self, bits):
         return "%09i" % int(bits)
 
     def _parse_lon(self, bits):
         result = self._scaled_integer(bits, 4)
-        if result != 181.0 and -180 <= result <= 180.0:
+        if result is not None and result != 181.0 and -180 <= result <= 180.0:
             return result
 
     def _parse_lat(self, bits):
         result = self._scaled_integer(bits, 4)
-        if result != 91.0 and -90.0 <= result <= 90.0:
+        if result is not None and result != 91.0 and -90.0 <= result <= 90.0:
             return result
 
     def _twos_comp(self, val, length):
@@ -364,7 +368,6 @@ class SentenceFragment:
 
 
 class Field(object):
-    #
     def __init__(self, field_decoder, sentence):
         self.decoder = field_decoder
         self.sentence = sentence

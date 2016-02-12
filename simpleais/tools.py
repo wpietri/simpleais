@@ -283,6 +283,7 @@ class SentencesInfo:
     def __init__(self, by_type=False):
         self.by_type = by_type
         self.sentence_count = 0
+        self.bad_checksum_count = 0
         self.time_range = MaxMin()
         if by_type:
             self.type_counts = defaultdict(int)
@@ -296,8 +297,19 @@ class SentencesInfo:
             self.type_counts[sentence.type_id()] += 1
         self.sender_counts[sentence['mmsi']] += 1
 
+    def count_bad_checksum(self):
+        self.bad_checksum_count += 1
+
     def report(self):
-        print("Found {} senders in {} sentences.".format(len(self.sender_counts), self.sentence_count))
+        if self.sentence_count < 1:
+            print("No sentences found.")
+            return
+        print("Found {} senders in {} good sentences with {} invalid ({:0.2f}%).".format(
+            len(self.sender_counts),
+            self.sentence_count,
+            self.bad_checksum_count,
+            100.0 * self.bad_checksum_count / (self.sentence_count + self.bad_checksum_count)
+        ))
         if self.time_range.valid() and self.time_range.range() > 0:
             m, s = divmod(self.time_range.range(), 60)
             h, m = divmod(m, 60)
@@ -424,18 +436,23 @@ def info(sources, individual, by_type, show_map, point):
             map_info.mark(p)
 
     for sentence in sentences_from_sources(sources):
-        if not sentence.check():
-            continue
-        sentences_info.add(sentence)
+        try:
+            if not sentence.check():
+                sentences_info.count_bad_checksum()
+                continue
+            sentences_info.add(sentence)
 
-        loc = sentence.location()
-        if loc:
-            geo_info.add(loc)
-            if show_map:
-                map_info.add(loc)
+            loc = sentence.location()
+            if loc:
+                geo_info.add(loc)
+                if show_map:
+                    map_info.add(loc)
 
-        if individual:
-            sender_info[sentence['mmsi']].add(sentence)
+            if individual:
+                sender_info[sentence['mmsi']].add(sentence)
+        except:
+            print("Unexpected failure for sentence", sentence.text, file=sys.stderr)
+            raise
 
     with wild_disregard_for(BrokenPipeError):
         sentences_info.report()
