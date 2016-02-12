@@ -1,4 +1,5 @@
 from collections import defaultdict
+from datetime import datetime
 import functools
 from math import radians, sin, atan2, sqrt, cos
 import os
@@ -29,6 +30,7 @@ def print_sentence_source(text, file=None):
         if file:
             print(line, file=file)
         else:
+            # noinspection PyArgumentList
             print(line, flush=True)
 
 
@@ -50,6 +52,49 @@ def cat(sources):
             print_sentence_source(sentence.text)
 
 
+def likes(field, lat, lon, mmsi, sentence, sentence_type):
+    factors = [True]
+    if len(mmsi) > 0:
+        factors.append(sentence['mmsi'] in mmsi)
+    if sentence_type:
+        factors.append(sentence.type_id() in sentence_type)
+    if lon:
+        factors.append(sentence.location() is not None and lon[0] < sentence['lon'] < lon[1])
+    if lat and sentence.location():
+        factors.append(sentence.location() is not None and lat[0] < sentence['lat'] < lat[1])
+    if field:
+        for f in field:
+            factors.append(sentence[f] is not None)
+    result = functools.reduce(lambda x, y: x and y, factors)
+    return result
+
+
+class Taster(object):
+    pass
+
+    def __init__(self, mmsi=None, sentence_type=None, lon=None, lat=None, field=None):
+        self.mmsi = mmsi
+        self.sentence_type = sentence_type
+        self.lon = lon
+        self.lat = lat
+        self.field = field
+
+    def likes(self, sentence):
+        factors = [True]
+        if self.mmsi:
+            factors.append(sentence['mmsi'] in self.mmsi)
+        if self.sentence_type:
+            factors.append(sentence.type_id() in self.sentence_type)
+        if self.lon:
+            factors.append(sentence.location() is not None and self.lon[0] < sentence['lon'] < self.lon[1])
+        if self.lat:
+            factors.append(sentence.location() is not None and self.lat[0] < sentence['lat'] < self.lat[1])
+        if self.field:
+            for f in self.field:
+                factors.append(sentence[f] is not None)
+        return functools.reduce(lambda x, y: x and y, factors)
+
+
 @click.command()
 @click.argument('sources', nargs=-1)
 @click.option('--mmsi', '-m', multiple=True)
@@ -66,22 +111,10 @@ def grep(sources, mmsi=None, mmsi_file=None, sentence_type=None, lon=None, lat=N
         with open(mmsi_file, "r") as f:
             mmsi.extend([l.strip() for l in f.readlines()])
         mmsi = frozenset(mmsi)
+    taster = Taster(mmsi, sentence_type, lon, lat, field)
     for sentence in sentences_from_sources(sources):
         with wild_disregard_for(BrokenPipeError):
-            factors = [True]
-
-            if len(mmsi) > 0:
-                factors.append(sentence['mmsi'] in mmsi)
-            if sentence_type:
-                factors.append(sentence.type_id() in sentence_type)
-            if lon and sentence.location():
-                factors.append(lon[0] < sentence['lon'] < lon[1])
-            if lat and sentence.location():
-                factors.append(lat[0] < sentence['lat'] < lat[1])
-            if field:
-                for f in field:
-                    factors.append(sentence[f] is not None)
-            if functools.reduce(lambda x, y: x and y, factors):
+            if taster.likes(sentence):
                 print_sentence_source(sentence.text)
 
 
@@ -190,6 +223,10 @@ class MaxMin:
         if value < self.min:
             self.min = value
 
+    def range(self):
+        if self.valid:
+            return self.max - self.min
+
 
 class GeoInfo:
     def __init__(self):
@@ -237,12 +274,17 @@ def distance(p1, p2):
 class SentencesInfo:
     def __init__(self, by_type=False):
         self.sentence_count = 0
-        self.type_counts = defaultdict(int)
+        self.time_range = MaxMin()
+        self.type_counts = None
+        if by_type:
+            self.type_counts = defaultdict(int)
         self.sender_counts = defaultdict(int)
         self.geo_info = GeoInfo()
 
     def add(self, sentence):
         self.sentence_count += 1
+        if sentence.time:
+            self.time_range.add(sentence.time.timestamp())
         if self.type_counts:
             self.type_counts[sentence.type_id()] += 1
         self.sender_counts[sentence['mmsi']] += 1
@@ -252,6 +294,13 @@ class SentencesInfo:
 
     def report(self):
         print("Found {} senders in {} sentences.".format(len(self.sender_counts), self.sentence_count))
+        if self.time_range.valid() and self.time_range.range() > 0:
+            m, s = divmod(self.time_range.range(), 60)
+            h, m = divmod(m, 60)
+            print("Starting on {} and running for {:02.0f}h{:02.0f}m{:02.0f}s.".format(
+                datetime.fromtimestamp(self.time_range.min).strftime(TIME_FORMAT),
+                h, m, s))
+
         if self.sentence_count > 0:
             if self.type_counts:
                 print("   type counts:")

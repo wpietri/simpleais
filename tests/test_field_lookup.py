@@ -88,6 +88,15 @@ class TestFieldLookup(TestCase):
         self.assertTrue(m['type'])
         self.assertFalse(m['unknown'])
 
+    def test_type_17_location(self):
+        # Type 17 locations are weird. I don't have enough data to reliably check,
+        # and it's not clear that it means the same thing as other lon/lat fields.
+        # So we'll just ignore them.
+        m = parse(['!AIVDM,2,1,2,B,AkklHKotBpj>Pv8OptkMaD`J4:iU74U5807A6AQaM`;,0*45',
+                   '!AIVDM,2,2,2,B,wibCPG`kAfs:E0Dhp,0*73'])[0]
+        self.assertIsNone(m['lat'])
+        self.assertIsNone(m['lon'])
+
 
 class TestNettlesomePackets(TestCase):
     def test_type_7(self):

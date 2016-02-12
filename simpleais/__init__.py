@@ -218,15 +218,19 @@ class FieldDecoder:
         self.end = end
         self.bit_range = slice(start, end + 1)
         self.description = description
-        self._decode = self._appropriate_decoder(data_type)
+        self._decode = self._appropriate_decoder(data_type, name)
 
-    def _appropriate_decoder(self, data_type):
-        if self.name == 'mmsi':
+    def _appropriate_decoder(self, data_type, name):
+        if name == 'mmsi':
             return self._parse_mmsi
-        elif self.name == 'lon':
+        elif name == 'lon' and data_type == 'I4':
             return self._parse_lon
-        elif self.name == 'lat':
+        elif name == 'lat' and data_type == 'I4':
             return self._parse_lat
+        elif name == 'lon' and data_type == 'I1':
+            return lambda b: None  # Type 17 is weird; ignore for now
+        elif name == 'lat' and data_type == 'I1':
+            return lambda b: None  # Type 17 is weird; ignore for now
         elif data_type == 't' or data_type == 's':
             return self._parse_text
         elif data_type == 'I3':
