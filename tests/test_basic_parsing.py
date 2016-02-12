@@ -19,8 +19,8 @@ class TestBasicParsing(TestCase):
     def test_basic_sentence(self):
         sentence = simpleais.parse('!ABVDM,1,1,,A,15NaEPPP01oR`R6CC?<j@gvr0<1C,0*1F')
         self.assertIsInstance(sentence, Sentence)
-        self.assertEqual(Talker('AB'), sentence.talker)
-        self.assertEqual(SentenceType('VDM'), sentence.sentence_type)
+        self.assertEqual('AB', sentence.talker)
+        self.assertEqual('VDM', sentence.sentence_type)
         self.assertEqual('A', sentence.radio_channel)
         self.assertEqual(1, sentence.type_id())
 

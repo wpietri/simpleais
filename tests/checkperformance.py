@@ -29,15 +29,27 @@ class Counter:
 counter = Counter()
 filename = 'sample.ais'
 
-with Timer() as t1:
-    for line in lines_from_source(filename):
-        counter.countChars(line)
+
+def fake_thing():
+    global t1
+    with Timer() as t1:
+        for line in lines_from_source(filename):
+            counter.countChars(line)
+
+
+fake_thing()
 
 print("comparison load takes", t1.duration)
 
-with Timer() as t2:
-    for sentence in sentences_from_source(filename):
-        counter.count(sentence['mmsi'])
+
+def real_thing():
+    global t2
+    with Timer() as t2:
+        for sentence in sentences_from_source(filename):
+            counter.count(sentence['mmsi'])
+
+
+real_thing()
 
 print("actual load takes    ", t2.duration)
 

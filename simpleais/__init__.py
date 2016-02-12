@@ -123,8 +123,8 @@ def parse_one(string):
 
     content, checksum = message[1:].split('*')
     fields = content.split(',')
-    talker = Talker(fields[0][0:2])
-    sentence_type = SentenceType(fields[0][2:])
+    talker = fields[0][0:2]
+    sentence_type = fields[0][2:]
     fragment_count = int(fields[1])
     radio_channel = fields[4]
     payload = NmeaPayload(fields[5], int(fields[6]))
@@ -161,14 +161,6 @@ class NMEAThing:
 
     def __ne__(self, other):
         return not self.__eq__(other)
-
-
-class Talker(NMEAThing):
-    pass
-
-
-class SentenceType(NMEAThing):
-    pass
 
 
 def _make_nmea_lookup_table():
@@ -534,6 +526,7 @@ def _handle_url_source(source):
     while True:
         # noinspection PyBroadException
         try:
+            # noinspection PyUnresolvedReferences
             with urllib.request.urlopen(source) as f:
                 for line in f:
                     yield line.decode('utf-8')
