@@ -362,10 +362,13 @@ class DensityMap:
         self.geo_info = GeoInfo()
         self.points = []
         self.marks = []
+        self.cached_height = None
 
     def add(self, point):
         self.points.append(point)
         self.geo_info.add(point)
+        if self.cached_height is not None:
+            self.cached_height = None
 
     def valid(self):
         return len(self.points) > 0 and self.geo_info.valid()
@@ -381,10 +384,13 @@ class DensityMap:
         return result
 
     def height(self):
-        if self.geo_info.valid() and self.geo_info.width() > 0 and self.geo_info.height() > 0:
-            return int(self.height_scale * self.geo_info.height() * self.width() / self.geo_info.width())
-        else:
-            return int(self.height_scale * self.width())
+        if self.cached_height is None:
+            if self.geo_info.valid() and self.geo_info.width() > 0 and self.geo_info.height() > 0:
+                self.cached_height = int(
+                    self.height_scale * self.geo_info.height() * self.width() / self.geo_info.width())
+            else:
+                self.cached_height = int(self.height_scale * self.width())
+        return self.cached_height
 
     def width(self):
         return self.desired_width
@@ -525,6 +531,7 @@ def dump(sources, bits):
                 else:
                     print("  {:>12}: {}".format(field.name(), value))
 
-# used only for profiling
+# used for profiling; call with something like "grep ../tests/sample.ais -t 20"
 if __name__ == "__main__":
-    grep(["../tests/sample.ais", "-t", "20"])
+    print("running", sys.argv[1], "with", sys.argv[2:], file=sys.stderr)
+    globals()[sys.argv[1]](sys.argv[2:])
