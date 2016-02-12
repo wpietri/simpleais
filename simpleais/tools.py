@@ -367,6 +367,9 @@ class DensityMap:
         self.points.append(point)
         self.geo_info.add(point)
 
+    def valid(self):
+        return len(self.points) > 0 and self.geo_info.valid()
+
     def bucket(self, points):
         xb = Bucketer(self.geo_info.lon.min, self.geo_info.lon.max, self.width())
         yb = Bucketer(self.geo_info.lat.min, self.geo_info.lat.max, self.height())
@@ -381,7 +384,7 @@ class DensityMap:
         if self.geo_info.valid() and self.geo_info.width() > 0 and self.geo_info.height() > 0:
             return int(self.height_scale * self.geo_info.height() * self.width() / self.geo_info.width())
         else:
-            return self.width()
+            return int(self.height_scale * self.width())
 
     def width(self):
         return self.desired_width
@@ -428,6 +431,8 @@ class DensityMap:
 
     def mark(self, point):
         self.marks.append(point)
+        self.geo_info.add(point)
+
 
 
 @click.command()
@@ -471,7 +476,7 @@ def info(sources, individual, by_type, show_map, point):
         if geo_info.valid():
             geo_info.report("  ")
 
-        if show_map:
+        if show_map and map_info.valid():
             map_info.show()
 
         if individual:

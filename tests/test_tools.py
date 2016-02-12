@@ -6,7 +6,7 @@ from simpleais.tools import *
 
 class TestDensityMap(TestCase):
     def test_empty(self):
-        m = DensityMap(3)
+        m = DensityMap(3, height_scale=1)
         self.assertListEqual([
             '+---+',
             '|   |',
@@ -39,8 +39,8 @@ class TestDensityMap(TestCase):
             '+---+',
         ], m.to_text())
 
-    def test_point(self):
-        m = DensityMap(3)
+    def test_single_data_point(self):
+        m = DensityMap(3, height_scale=1)
         m.add((0, 0))
         self.assertListEqual([
             '+---+',
@@ -51,7 +51,7 @@ class TestDensityMap(TestCase):
         ], m.to_text())
 
     def test_line(self):
-        m = DensityMap(3)
+        m = DensityMap(3, height_scale=1)
         m.add((0, 0))
         m.add((1, 0))
         m.add((2, 0))
@@ -149,6 +149,19 @@ class TestDensityMap(TestCase):
             '+---+',
             '|  9|',
             '| * |',
+            '|9  |',
+            '+---+',
+        ], m.to_text())
+
+    def test_mark_off_screen(self):
+        m = DensityMap(3, height_scale=1)
+        m.add((-1, -1))
+        m.add((1, 1))
+        m.mark((3, 3))
+        self.assertListEqual([
+            '+---+',
+            '|  *|',
+            '| 9 |',
             '|9  |',
             '+---+',
         ], m.to_text())
