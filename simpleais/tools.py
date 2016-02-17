@@ -206,13 +206,13 @@ class SenderInfo:
             self.fields['shipname'] = sentence['shipname']
             self.fields['destination'] = sentence['destination']
 
-    def report(self):
-        print("{}:".format(self.mmsi))
-        print("    sentences: {}".format(self.sentence_count))
+    def report(self, file=sys.stdout):
+        print("{}:".format(self.mmsi), file=file)
+        print("    sentences: {}".format(self.sentence_count), file=file)
         type_text = ["{}: {}".format(t, self.type_counts[t]) for t in (sorted(self.type_counts))]
-        print("        types: {}".format(", ".join(type_text)))
+        print("        types: {}".format(", ".join(type_text)), file=file)
         for field in sorted(self.fields):
-            print("  {:>11s}: {}".format(field, self.fields[field]))
+            print("  {:>11s}: {}".format(field, self.fields[field]), file=file)
 
 
 class MaxMin:
@@ -245,11 +245,13 @@ class GeoInfo:
         self.lon.add(point[0])
         self.lat.add(point[1])
 
-    def report(self, indent=""):
-        print("{}    top left: {:.4f}, {:.4f}".format(indent, self.lon.min, self.lat.max))
-        print("{}bottom right: {:.4f}, {:.4f}".format(indent, self.lon.max, self.lat.min))
-        print("{}       width: {:.2f} km".format(indent, self.width()))
-        print("{}      height: {:.2f} km".format(indent, self.height()))
+    def report(self, indent="", file=sys.stdout):
+        if not self.valid():
+            return
+        print("{}    top left: {:.4f}, {:.4f}".format(indent, self.lon.min, self.lat.max), file=file)
+        print("{}bottom right: {:.4f}, {:.4f}".format(indent, self.lon.max, self.lat.min), file=file)
+        print("{}       width: {:.2f} km".format(indent, self.width()), file=file)
+        print("{}      height: {:.2f} km".format(indent, self.height()), file=file)
 
     def width(self):
         return distance((self.lon.min, self.lat.min), (self.lon.max, self.lat.min))
@@ -304,29 +306,29 @@ class SentencesInfo:
     def count_bad_checksum(self):
         self.bad_checksum_count += 1
 
-    def report(self):
+    def report(self, file=sys.stdout):
         if self.sentence_count < 1:
-            print("No sentences found.")
+            print("No sentences found.", file=file)
             return
         print("Found {} senders in {} good sentences with {} invalid ({:0.2f}%).".format(
             len(self.sender_counts),
             self.sentence_count,
             self.bad_checksum_count,
             100.0 * self.bad_checksum_count / (self.sentence_count + self.bad_checksum_count)
-        ))
+        ), file=file)
         if self.time_range.valid() and self.time_range.range() > 0:
             m, s = divmod(self.time_range.range(), 60)
             h, m = divmod(m, 60)
             print("Starting on {} and running for {:02.0f}h{:02.0f}m{:02.0f}s.".format(
                 datetime.fromtimestamp(self.time_range.min).strftime(TIME_FORMAT),
-                h, m, s))
+                h, m, s), file=file)
 
         if self.sentence_count > 0:
             if self.by_type:
-                print("   type counts:")
+                print("   type counts:", file=file)
                 for i in sorted(self.type_counts):
-                    print("                {:2d} {:8d}".format(i, self.type_counts[i]))
-                print()
+                    print("                {:2d} {:8d}".format(i, self.type_counts[i]), file=file)
+                print(file=file)
 
 
 class Bucketer:
@@ -432,8 +434,8 @@ class DensityMap:
         output.append(header_footer_line)
         return output
 
-    def show(self):
-        print("\n".join(self.to_text()))
+    def show(self, file=sys.stdout):
+        print("\n".join(self.to_text()), file=file)
 
     def mark(self, point):
         self.marks.append(point)
@@ -462,6 +464,7 @@ def info(sources, individual, by_type, show_map, point):
             if not sentence.check():
                 sentences_info.count_bad_checksum()
                 continue
+
             sentences_info.add(sentence)
 
             loc = sentence.location()
@@ -477,17 +480,17 @@ def info(sources, individual, by_type, show_map, point):
             raise
 
     with wild_disregard_for(BrokenPipeError):
-        sentences_info.report()
+        sentences_info.report(file=sys.stdout)
 
         if geo_info.valid():
-            geo_info.report("  ")
+            geo_info.report("  ", file=sys.stdout)
 
         if show_map and map_info.valid():
-            map_info.show()
+            map_info.show(file=sys.stdout)
 
         if individual:
             for mmsi in sorted(sender_info):
-                sender_info[mmsi].report()
+                sender_info[mmsi].report(file=sys.stdout)
 
 
 def chunks(l, n):
