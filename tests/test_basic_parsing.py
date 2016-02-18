@@ -142,6 +142,22 @@ class TestStreamParser(TestCase):
         p.add('!AIVDM,2,2,6,A,00000000000,2*22')
         self.assertFalse(p.has_sentence())
 
+    def test_time(self):
+        p = StreamParser()
+        p.add('!ABVDM,1,1,,A,15MqdBP001GRT>>CCUu360Lr041d,0*69')
+        self.assertIsNone(p.next_sentence().time)
+
+        p = StreamParser(False)
+        p.add('!ABVDM,1,1,,A,15MqdBP001GRT>>CCUu360Lr041d,0*69')
+        self.assertIsNone(p.next_sentence().time)
+
+        p = StreamParser(True)
+        p.add('!ABVDM,1,1,,A,15MqdBP001GRT>>CCUu360Lr041d,0*69')
+        time = p.next_sentence().time
+        self.assertIsNotNone(time)
+        self.assertAlmostEqual(datetime.now().timestamp(), time.timestamp(), places=3)
+
+
 class TestFragmentPool(TestCase):
     def __init__(self, method_name='runTest'):
         super(TestFragmentPool, self).__init__(method_name)

@@ -69,12 +69,13 @@ class StreamParser:
     Used to parse live streams of AIS messages.
     """
 
-    def __init__(self):
+    def __init__(self, default_to_current_time=False):
+        self.default_to_current_time = default_to_current_time
         self.fragment_pool = {'A': FragmentPool(), 'B': FragmentPool()}
         self.sentence_buffer = collections.deque()
 
     def add(self, message_text):
-        thing = parse_one(message_text)
+        thing = parse_one(message_text, self.default_to_current_time)
         if isinstance(thing, Sentence):
             self.sentence_buffer.append(thing)
         elif isinstance(thing, SentenceFragment):
@@ -109,7 +110,7 @@ def nmea_checksum(content):
     return result
 
 
-def parse_one(string):
+def parse_one(string, default_to_current_time=False):
     m = aivdm_pattern.search(string)
     if not m:
         return None
@@ -117,7 +118,10 @@ def parse_one(string):
     if m.group(1):
         time = datetime.fromtimestamp(float(m.group(1)))
     else:
-        time = None
+        if default_to_current_time:
+            time = datetime.now()
+        else:
+            time = None
 
     message = m.group(2)
 
@@ -130,12 +134,12 @@ def parse_one(string):
     payload = NmeaPayload(fields[5], int(fields[6]))
     checksum_valid = nmea_checksum(content) == int(checksum, 16)
     if fragment_count == 1:
-        return Sentence(talker, sentence_type, radio_channel, payload, [checksum_valid], time, [string])
+        return Sentence(talker, sentence_type, radio_channel, payload, [checksum_valid], time, [message])
     else:
         fragment_number = int(fields[2])
         message_id = int(fields[3])
         return SentenceFragment(talker, sentence_type, fragment_count, fragment_number,
-                                message_id, radio_channel, payload, checksum_valid, time, string)
+                                message_id, radio_channel, payload, checksum_valid, time, message)
 
 
 def parse(message):
@@ -423,6 +427,12 @@ class Sentence:
         checksum_valid = [f.checksum_valid for f in matching_fragments]
         return Sentence(first.talker, first.sentence_type, first.radio_channel, NmeaPayload(message_bits),
                         checksum_valid, first.time, text)
+
+    def __repr__(self):
+        return "Sentence({}, {})".format(self.time, self.text)
+
+    def __str__(self):
+        return "Sentence(type {}, from {}, at {})".format(self.type_num, self['mmsi'], self.time)
 
 
 class FragmentPool:
