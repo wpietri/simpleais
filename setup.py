@@ -1,7 +1,7 @@
 from setuptools import setup, find_packages
 
 setup(name='simpleais',
-      version=0.60,
+      version='0.6.1',
       description='a simple ais parser',
       url='https://github.com/wpietri/simpleais',
       author='William Pietri',
@@ -9,6 +9,7 @@ setup(name='simpleais',
       license='Apache 2.0',
       packages=find_packages(),
       install_requires=['bitstring', 'testfixtures', 'Click', 'numpy', 'beautifulsoup4'],
+      package_data={'simpleais': ['aivdm.json']},
       entry_points={
           'console_scripts': [
               'aiscat = simpleais.tools:cat',
