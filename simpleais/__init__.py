@@ -1,14 +1,14 @@
 import collections
-from functools import reduce
-from io import TextIOBase
 import json
 import logging
 import os
 import re
-from time import sleep
 from datetime import datetime
+from functools import reduce
+from io import TextIOBase
+from time import sleep
 
-aivdm_pattern = re.compile(r'([.0-9]+)?\s*(![A-Z]{5},\d,\d,.?,[AB12],[^,]+,[0-5]\*[0-9A-F]{2})')
+aivdm_pattern = re.compile(r'([.0-9]+)?\s*(![A-Z]{5},\d,\d,.?,[AB12]?,[^,]+,[0-5]\*[0-9A-F]{2})')
 
 
 class Bits:

@@ -1,7 +1,7 @@
 from unittest import TestCase
 
-from simpleais import *
 import simpleais
+from simpleais import *
 
 fragmented_message_type_8 = ['!AIVDM,3,1,3,A,85NoHR1KfI99t:BHBI3sWpAoS7VHRblW8McQtR3lsFR,0*5A',
                              '!AIVDM,3,2,3,A,ApU6wWmdIeJG7p1uUhk8Tp@SVV6D=sTKh1O4fBvUcaN,0*5E',
@@ -75,6 +75,11 @@ class TestBasicParsing(TestCase):
         self.assertFalse(good_and_bad.check())
         self.assertEqual([True, False], good_and_bad.checksum_valid)
 
+    def test_missing_channel(self):
+        # seen in the wild via AISHub
+        f = parse('!ABVDM,1,1,,,13a57D0P@005CH@MinkdJ0q:0>`<,0*31')
+        self.assertEqual(1, f.type_id())
+        print(f)
 
 class TestFragment(TestCase):
     def test_last(self):
