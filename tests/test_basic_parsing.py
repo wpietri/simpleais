@@ -79,7 +79,27 @@ class TestBasicParsing(TestCase):
         # seen in the wild via AISHub
         f = parse('!ABVDM,1,1,,,13a57D0P@005CH@MinkdJ0q:0>`<,0*31')
         self.assertEqual(1, f.type_id())
-        print(f)
+
+    def test_freakish_sentences(self):
+        # not sensible, but seen in the wild, might as well roll with it
+        f = parse('!AIVDM,1,1,,B,SA8L00@00:;0k@4LO7Q3owuL00008:0005f000000000000004@P,0*1F')
+        self.assertEqual(35, f.type_id())
+        self.assertEqual('075956225', f['mmsi'])
+        self.assertEqual(274, len(f['payload']))
+
+        # should have a message id, but other decoders don't seem to mind
+        f = parse(['!AIVDM,2,1,,B,E>jN6<0W6@1WPab3bPa2@LtP0000:usB?9TV@00003v011,2*10',
+                   '!AIVDM,2,2,,B,000,2*67'])[0]
+        self.assertEqual(21, f.type_id())
+        self.assertEqual('992446000', f['mmsi'])
+        self.assertEqual('NL COASTGUARD 99', f['name'])
+
+        # the 6 fill bits thing is out of spec, but apparently common
+        f = parse('!AIVDM,1,1,,2,ENjOsphrg@6a9Qh92SSTWh1PV0Q0Slm@:r;8000000N014R@0,6*12')
+        self.assertEqual(21, f.type_id())
+        self.assertEqual('992476131', f['mmsi'])
+        self.assertEqual('5^ MRSC REGGIO CALAB', f['name'])
+
 
 class TestFragment(TestCase):
     def test_last(self):
@@ -161,6 +181,14 @@ class TestStreamParser(TestCase):
         time = p.next_sentence().time
         self.assertIsNotNone(time)
         self.assertAlmostEqual(datetime.now().timestamp(), time.timestamp(), places=3)
+
+    def test_missing_channel(self):
+        # seen in the wild via AISHub
+        p = StreamParser()
+        p.add('!AIVDM,2,1,2,,5774L402AGd9I8dcN20l4E9<f0h48E8Tq@v22217LI9BK4cP0KTSm51DQ0,0*3E')
+        self.assertFalse(p.has_sentence())
+        p.add('!AIVDM,2,2,2,,CH88888888880,2*6C in source aishub.ais')
+        self.assertEqual(5, p.next_sentence().type_id())
 
 
 class TestFragmentPool(TestCase):

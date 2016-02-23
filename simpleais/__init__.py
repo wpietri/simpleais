@@ -8,7 +8,7 @@ from functools import reduce
 from io import TextIOBase
 from time import sleep
 
-aivdm_pattern = re.compile(r'([.0-9]+)?\s*(![A-Z]{5},\d,\d,.?,[AB12]?,[^,]+,[0-5]\*[0-9A-F]{2})')
+aivdm_pattern = re.compile(r'([.0-9]+)?\s*(![A-Z]{5},\d,\d,.?,[AB12]?,[^,]+,[0-6]\*[0-9A-F]{2})')
 
 
 class Bits:
@@ -71,7 +71,7 @@ class StreamParser:
 
     def __init__(self, default_to_current_time=False):
         self.default_to_current_time = default_to_current_time
-        self.fragment_pool = {'A': FragmentPool(), 'B': FragmentPool()}
+        self.fragment_pool = collections.defaultdict(FragmentPool)
         self.sentence_buffer = collections.deque()
 
     def add(self, message_text):
@@ -137,7 +137,7 @@ def parse_one(string, default_to_current_time=False):
         return Sentence(talker, sentence_type, radio_channel, payload, [checksum_valid], time, [message])
     else:
         fragment_number = int(fields[2])
-        message_id = int(fields[3])
+        message_id = fields[3]
         return SentenceFragment(talker, sentence_type, fragment_count, fragment_number,
                                 message_id, radio_channel, payload, checksum_valid, time, message)
 
@@ -221,7 +221,10 @@ class FieldDecoder:
         self.bit_range = slice(start, end + 1)
         self.description = description
         self._decode = self._appropriate_decoder(data_type, name)
-        self.short_bits_ok = data_type in ['s', 't']  # if we get partial text, that's better than nothing
+        self.short_bits_ok = data_type in ['s', 't', 'd']  # if we get partial text or data, that's better than nothing
+
+    def __repr__(self, *args, **kwargs):
+        return ("FieldDecoder({}, {}, {}, {})".format(self.name, self.description, self.start, self.end))
 
     def _appropriate_decoder(self, data_type, name):
         if name == 'mmsi':
@@ -328,6 +331,47 @@ MESSAGE_DECODERS = {}
 for message_type_id in range(1, 28):
     MESSAGE_DECODERS[message_type_id] = MessageDecoder(message_type_json[str(message_type_id)])
 
+BACKUP_DECODER = MessageDecoder({
+    "name": "Unknown message",
+    "fields": [
+        {
+            "start": 0,
+            "end": 5,
+            "description": "Message Type",
+            "member": "type",
+            "type": "u"
+        },
+        {
+            "start": 6,
+            "end": 7,
+            "description": "Repeat Indicator",
+            "member": "repeat",
+            "type": "u"
+        },
+        {
+            "start": 8,
+            "end": 37,
+            "description": "MMSI",
+            "member": "mmsi",
+            "type": "u"
+        },
+        {
+            "start": 38,
+            "end": 1000,
+            "description": "Payload",
+            "member": "payload",
+            "type": "d"
+        }
+    ]
+}
+)
+
+
+def _decoder_for_type(number):
+    if number in MESSAGE_DECODERS:
+        return MESSAGE_DECODERS[number]
+    else:
+        return BACKUP_DECODER
 
 class SentenceFragment:
     def __init__(self, talker, sentence_type, total_fragments, fragment_number, message_id, radio_channel, payload,
@@ -411,13 +455,16 @@ class Sentence:
         return self.payload.bits
 
     def __getitem__(self, item):
-        return MESSAGE_DECODERS[self.type_num].decode(item, self.payload.bits)
+        return self.decoder().decode(item, self.payload.bits)
+
+    def decoder(self):
+        return _decoder_for_type(self.type_num)
 
     def field(self, key):
-        return Field(MESSAGE_DECODERS[self.type_num].field(key), self)
+        return Field(self.decoder().field(key), self)
 
     def fields(self):
-        return [Field(fd, self) for fd in MESSAGE_DECODERS[self.type_num].fields()]
+        return [Field(fd, self) for fd in self.decoder().fields()]
 
     @classmethod
     def from_fragments(cls, matching_fragments):
