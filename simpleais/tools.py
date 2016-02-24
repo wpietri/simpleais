@@ -1,16 +1,19 @@
-from collections import defaultdict
-from datetime import datetime
 import functools
-from math import radians, sin, atan2, sqrt, cos
+import math
 import os
-import sys
 import re
+import sys
+from collections import defaultdict
 from contextlib import contextmanager
+from datetime import datetime
+from math import radians, sin, atan2, sqrt, cos
 
 import click
 import numpy
 
 from simpleais import sentences_from_source
+
+_RADIUS_OF_EARTH = 6373.0
 
 TIME_FORMAT = "%Y/%m/%d %H:%M:%S"
 
@@ -235,8 +238,15 @@ class MaxMin:
         if self.valid:
             return self.max - self.min
 
+    def mid(self):
+        if self.valid:
+            return (self.max + self.min) / 2
+
 
 class GeoInfo:
+    """
+    This behaves weirdly with smaller areas that cross the dateline; it will show a whole world map.
+    """
     def __init__(self):
         self.lon = MaxMin()
         self.lat = MaxMin()
@@ -254,10 +264,14 @@ class GeoInfo:
         print("{}      height: {:.2f} km".format(indent, self.height()), file=file)
 
     def width(self):
-        return distance((self.lon.min, self.lat.min), (self.lon.max, self.lat.min))
+        result = distance((self.lon.min, self.lat.mid()), (self.lon.max, self.lat.mid()))
+        if self.lon.range() <= 180:
+            return result
+        else:
+            return _RADIUS_OF_EARTH * math.pi * 2 - result
 
     def height(self):
-        return distance((self.lon.min, self.lat.min), (self.lon.min, self.lat.max))
+        return distance((self.lon.mid(), self.lat.min), (self.lon.mid(), self.lat.max))
 
     def __str__(self, *args, **kwargs):
         return "GeoInfo(latmin={}, latmax={}, lonmin={}, lonmax={})".format(self.lat.min, self.lat.max,
@@ -268,8 +282,6 @@ class GeoInfo:
 
 
 def distance(p1, p2):
-    r = 6373.0
-
     lon1 = radians(p1[0])
     lat1 = radians(p1[1])
     lon2 = radians(p2[0])
@@ -281,7 +293,7 @@ def distance(p1, p2):
     a = sin(dlat / 2) ** 2 + cos(lat1) * cos(lat2) * sin(dlon / 2) ** 2
     c = 2 * atan2(sqrt(a), sqrt(1 - a))
 
-    d = r * c
+    d = _RADIUS_OF_EARTH * c
     return d
 
 

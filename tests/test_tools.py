@@ -4,6 +4,34 @@ from simpleais import parse
 from simpleais.tools import *
 
 
+class TestGeoInfo(TestCase):
+    def test_small_area(self):
+        g = GeoInfo()
+        g.add((-122.4775, 37.8108))  # Fort Point
+        g.add((-122.4321, 37.8065))  # Fort Mason
+        self.assertEqual(-122.4775, g.lon.min)
+        self.assertEqual(-122.4321, g.lon.max)
+        self.assertEqual(37.8065, g.lat.min)
+        self.assertEqual(37.8108, g.lat.max)
+        self.assertAlmostEqual(3.99, g.width(), 3)
+        self.assertAlmostEqual(0.48, g.height(), 2)
+
+    def test_the_whole_world(self):
+        # I'm not totally sure this is the right behavior, but let's go with it for now.
+        g = GeoInfo()
+        g.add((-179, 0))
+        g.add((0, 0))
+        g.add((179, 0))
+        self.assertAlmostEqual(39820, g.width(), 0)
+        self.assertAlmostEqual(0, g.height(), 0)
+
+        # TODO: test large but not huge areas
+        # TODO: test an area near the poles
+        # TODO: test an area that crosses the equator
+        # TODO: test an area that crosses the dateline
+        # TODO: test an area that is more than half the earth
+
+
 class TestDensityMap(TestCase):
     def test_empty(self):
         m = DensityMap(3, height_scale=1)
@@ -265,7 +293,6 @@ class TestTaster(TestCase):
         taster = Taster(checksum=False)
         self.assertFalse(taster.likes(good))
         self.assertTrue(taster.likes(bad))
-
 
 
 from click.testing import CliRunner
