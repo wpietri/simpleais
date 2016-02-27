@@ -1,5 +1,6 @@
 from setuptools import setup, find_packages
 
+print("here: ", find_packages())
 setup(name='simpleais',
       version='0.6.2',
       description='a simple ais parser',
@@ -15,12 +16,12 @@ setup(name='simpleais',
       package_data={'simpleais': ['aivdm.json']},
       entry_points={
           'console_scripts': [
-              'aiscat = simpleais.devtools:cat',
-              'aisgrep = simpleais.devtools:grep',
-              'aist = simpleais.devtools:as_text',
-              'aisburst = simpleais.devtools:burst',
-              'aisinfo = simpleais.devtools:info',
-              'aisdump = simpleais.devtools:dump',
+              'aiscat = simpleais.tools:cat',
+              'aisgrep = simpleais.tools:grep',
+              'aist = simpleais.tools:as_text',
+              'aisburst = simpleais.tools:burst',
+              'aisinfo = simpleais.tools:info',
+              'aisdump = simpleais.tools:dump',
           ],
       },
       )
