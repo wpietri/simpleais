@@ -90,9 +90,9 @@ class Taster(object):
         if self.sentence_type:
             factors.append(sentence.type_id() in self.sentence_type)
         if self.lon:
-            factors.append(sentence.location() is not None and self.lon[0] < sentence['lon'] < self.lon[1])
+            factors.append(sentence.location() is not None and self.lon[0] <= sentence['lon'] <= self.lon[1])
         if self.lat:
-            factors.append(sentence.location() is not None and self.lat[0] < sentence['lat'] < self.lat[1])
+            factors.append(sentence.location() is not None and self.lat[0] <= sentence['lat'] <= self.lat[1])
         if self.field:
             for f in self.field:
                 factors.append(sentence[f] is not None)
