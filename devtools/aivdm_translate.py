@@ -1,11 +1,10 @@
 #!/usr/bin/env python
+import json
 import os
 import re
-import json
 from collections import OrderedDict
 
 from bs4 import BeautifulSoup
-
 
 # Takes the AIVDM html file (downloaded from from http://catb.org/gpsd/AIVDM.html) and extracts JSON
 # that is used by SimpleAIS to do protocol decoding. This only needs to be re-run when the source
