@@ -327,7 +327,7 @@ class TimeFieldDecoder(FieldDecoder):
                                     sentence['minute'], sentence['second']))
 
     def we_have_the_fields(self, sentence):
-        return 1980 <= sentence['year'] and \
+        return 1980 <= sentence['year'] <= 9999 and \
                1 <= sentence['month'] <= 12 and \
                1 <= sentence['day'] <= 31 and \
                0 <= sentence['hour'] <= 24 and \

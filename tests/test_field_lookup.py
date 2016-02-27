@@ -111,6 +111,10 @@ class TestFieldLookup(TestCase):
         m = parse('1456560000.378 !AIVDM,1,1,,A,4023?>0000Htt12LAnDRa`G00d3I,0*44')
         self.assertIsNone(m['time'])
 
+    def test_type_4_with_bad_time(self):
+        m = parse('1456614528.900 !AIVDM,1,1,,B,4r`r4cc2tMhKpNFJtl1>Egqo1<9l,0*2C')
+        self.assertIsNone(m['time'])
+
 
 class TestNettlesomePackets(TestCase):
     def test_type_7(self):
