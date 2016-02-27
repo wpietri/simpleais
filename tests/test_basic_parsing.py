@@ -41,7 +41,7 @@ class TestBasicParsing(TestCase):
     def test_optional_date(self):
         text = "1454124838.633\t!ABVDM,1,1,,A,15NaEPPP01oR`R6CC?<j@gvr0<1C,0*1F"
         sentence = simpleais.parse(text)
-        self.assertEqual(datetime.fromtimestamp(1454124838.633), sentence.time)
+        self.assertEqual(1454124838.633, sentence.time)
 
     def test_fragment_assembly(self):
         raw = fragmented_message_type_8
@@ -178,9 +178,9 @@ class TestStreamParser(TestCase):
 
         p = StreamParser(True)
         p.add('!ABVDM,1,1,,A,15MqdBP001GRT>>CCUu360Lr041d,0*69')
-        time = p.next_sentence().time
-        self.assertIsNotNone(time)
-        self.assertAlmostEqual(datetime.now().timestamp(), time.timestamp(), places=3)
+        sentence_time = p.next_sentence().time
+        self.assertIsNotNone(sentence_time)
+        self.assertAlmostEqual(sentence_time, sentence_time, places=3)
 
     def test_missing_channel(self):
         # seen in the wild via AISHub

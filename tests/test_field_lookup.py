@@ -1,7 +1,7 @@
 from unittest import TestCase
 
-from simpleais import *
 import simpleais
+from simpleais import *
 
 field_json = '''{
   "1": {
@@ -52,9 +52,9 @@ class TestFieldLookup(TestCase):
     def test_decoder_decodes(self):
         d = MESSAGE_DECODERS[1]
         m = simpleais.parse('!ABVDM,1,1,,A,15NaEPPP01oR`R6CC?<j@gvr0<1C,0*1F')
-        self.assertEqual('367678850', d.decode('mmsi', m.payload.bits))
-        self.assertAlmostEquals(33.7302, d.decode('lat', m.payload.bits))
-        self.assertAlmostEquals(-118.2634, d.decode('lon', m.payload.bits))
+        self.assertEqual('367678850', d.decode('mmsi', m))
+        self.assertAlmostEquals(33.7302, d.decode('lat', m))
+        self.assertAlmostEquals(-118.2634, d.decode('lon', m))
 
     def test_fields_for_sentence(self):
         m = simpleais.parse('!ABVDM,1,1,,A,15NaEPPP01oR`R6CC?<j@gvr0<1C,0*1F')
@@ -96,6 +96,20 @@ class TestFieldLookup(TestCase):
                    '!AIVDM,2,2,2,B,wibCPG`kAfs:E0Dhp,0*73'])[0]
         self.assertIsNone(m['lat'])
         self.assertIsNone(m['lon'])
+
+    def test_type_4(self):
+        # Base stations offer a time and position reference; the time may be different
+        # than the timestamp given to sentences when received.
+        m = parse('!AIVDM,1,1,,B,402M45iv0c?NN0dST0TPK@7008Aq,0*7F')
+        self.assertAlmostEqual(63.8000, m['lat'], 4)
+        self.assertAlmostEqual(9.7333, m['lon'], 4)
+        self.assertTrue(m.field('time').valid())
+        self.assertEqual(calendar.timegm((2016, 2, 22, 15, 30, 30, 0)), m['time'])
+        self.assertEqual(40, len(m.field('time').bits()))
+
+    def test_type_4_with_no_time(self):
+        m = parse('1456560000.378 !AIVDM,1,1,,A,4023?>0000Htt12LAnDRa`G00d3I,0*44')
+        self.assertIsNone(m['time'])
 
 
 class TestNettlesomePackets(TestCase):

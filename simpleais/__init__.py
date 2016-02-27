@@ -1,12 +1,12 @@
+import calendar
 import collections
 import json
 import logging
 import os
 import re
-from datetime import datetime
+import time
 from functools import reduce
 from io import TextIOBase
-from time import sleep
 
 aivdm_pattern = re.compile(r'([.0-9]+)?\s*(![A-Z]{5},\d,\d,.?,[AB12]?,[^,]+,[0-6]\*[0-9A-F]{2})')
 
@@ -116,12 +116,12 @@ def parse_one(string, default_to_current_time=False):
         return None
 
     if m.group(1):
-        time = datetime.fromtimestamp(float(m.group(1)))
+        sentence_time = float(m.group(1))
     else:
         if default_to_current_time:
-            time = datetime.now()
+            sentence_time = time.time()
         else:
-            time = None
+            sentence_time = None
 
     message = m.group(2)
 
@@ -134,12 +134,12 @@ def parse_one(string, default_to_current_time=False):
     payload = NmeaPayload(fields[5], int(fields[6]))
     checksum_valid = nmea_checksum(content) == int(checksum, 16)
     if fragment_count == 1:
-        return Sentence(talker, sentence_type, radio_channel, payload, [checksum_valid], time, [message])
+        return Sentence(talker, sentence_type, radio_channel, payload, [checksum_valid], sentence_time, [message])
     else:
         fragment_number = int(fields[2])
         message_id = fields[3]
         return SentenceFragment(talker, sentence_type, fragment_count, fragment_number,
-                                message_id, radio_channel, payload, checksum_valid, time, message)
+                                message_id, radio_channel, payload, checksum_valid, sentence_time, message)
 
 
 def parse(message):
@@ -160,8 +160,7 @@ class NMEAThing:
         return self.__str__()
 
     def __eq__(self, other):
-        return (isinstance(other, self.__class__)
-                and self.__dict__ == other.__dict__)
+        return isinstance(other, self.__class__) and self.__dict__ == other.__dict__
 
     def __ne__(self, other):
         return not self.__eq__(other)
@@ -209,10 +208,21 @@ class NmeaPayload:
         return len(self.bits)
 
 
-message_type_json = json.loads(open(os.path.join(os.path.dirname(__file__), 'aivdm.json')).read())['messages']
-
-
 class FieldDecoder:
+    name = 'unknown'
+    description = "Unknown field"
+
+    def bits(self, sentence):
+        raise NotImplementedError
+
+    def decode(self, sentence):
+        raise NotImplementedError
+
+    def valid(self, sentence):
+        raise NotImplementedError
+
+
+class BitFieldDecoder(FieldDecoder):
     def __init__(self, name, start, end, data_type, description):
         self.name = name
         self.start = start
@@ -224,7 +234,7 @@ class FieldDecoder:
         self.short_bits_ok = data_type in ['s', 't', 'd']  # if we get partial text or data, that's better than nothing
 
     def __repr__(self, *args, **kwargs):
-        return ("FieldDecoder({}, {}, {}, {})".format(self.name, self.description, self.start, self.end))
+        return "FieldDecoder({}, {}, {}, {})".format(self.name, self.description, self.start, self.end)
 
     def _appropriate_decoder(self, data_type, name):
         if name == 'mmsi':
@@ -260,10 +270,16 @@ class FieldDecoder:
         else:
             raise ValueError("Sorry, don't know how to parse '{}' for field '{}' yet".format(data_type, self.name))
 
-    def decode(self, bits):
-        bits_to_decode = bits[self.bit_range]
+    def decode(self, sentence):
+        bits_to_decode = self.bits(sentence)
         if self.short_bits_ok or self.length == len(bits_to_decode):
             return self._decode(bits_to_decode)
+
+    def bits(self, sentence):
+        return sentence.message_bits()[self.bit_range]
+
+    def valid(self, sentence):
+        return len(sentence.message_bits()) > self.end
 
     def _parse_mmsi(self, bits):
         return "%09i" % int(bits)
@@ -300,22 +316,63 @@ class FieldDecoder:
         return text
 
 
+class TimeFieldDecoder(FieldDecoder):
+    name = 'time'
+    description = "UTC Time Reference"
+
+    def decode(self, sentence):
+        if self.we_have_the_fields(sentence) and self.the_fields_are_ok(sentence):
+            return calendar.timegm((sentence['year'], sentence['month'],
+                                    sentence['day'], sentence['hour'],
+                                    sentence['minute'], sentence['second']))
+
+    def we_have_the_fields(self, sentence):
+        return 1980 <= sentence['year'] and \
+               1 <= sentence['month'] <= 12 and \
+               1 <= sentence['day'] <= 31 and \
+               0 <= sentence['hour'] <= 24 and \
+               0 <= sentence['minute'] <= 59 and \
+               0 <= sentence['second'] <= 59
+
+    def the_fields_are_ok(self, sentence):
+        return all(name in sentence for name in ['year', 'month', 'day', 'hour', 'minute', 'second'])
+
+    def bits(self, sentence):
+        return sentence.message_bits()[
+               self._first_field(sentence).decoder.start:self._last_field(sentence).decoder.end + 1]
+
+    def valid(self, sentence):
+        return self._first_field(sentence).valid() and self._last_field(sentence).valid()
+
+    def _last_field(self, sentence):
+        return sentence.field('second')
+
+    def _first_field(self, sentence):
+        return sentence.field('year')
+
+
 class MessageDecoder:
     def __init__(self, message_info):
         self.field_decoders = []
         self.field_decoders_by_id = collections.OrderedDict()
         for field in message_info['fields']:
-            name = field['member']
-            decoder = FieldDecoder(name, field['start'], field['end'], field['type'], field['description'])
-            self.field_decoders.append(decoder)
-            self.field_decoders_by_id[name] = decoder
+            decoder = BitFieldDecoder(field['member'], field['start'], field['end'], field['type'],
+                                      field['description'])
+            self.add_field_decoder(field['member'], decoder)
+
+    def add_field_decoder(self, name, decoder):
+        self.field_decoders.append(decoder)
+        self.field_decoders_by_id[name] = decoder
 
     def bit_range(self, name):
         return self.field_decoders_by_id[name].bit_range
 
-    def decode(self, name, bits):
+    def decode(self, name, sentence):
         if name in self.field_decoders_by_id:
-            return self.field_decoders_by_id[name].decode(bits)
+            return self.field_decoders_by_id[name].decode(sentence)
+
+    def __contains__(self, name):
+        return name in self.field_decoders_by_id
 
     def fields(self):
         return self.field_decoders_by_id.values()
@@ -327,9 +384,18 @@ class MessageDecoder:
             return self.field_decoders_by_id[key]
 
 
-MESSAGE_DECODERS = {}
-for message_type_id in range(1, 28):
-    MESSAGE_DECODERS[message_type_id] = MessageDecoder(message_type_json[str(message_type_id)])
+def _load_decoders(source_file):
+    message_type_json = json.loads(open(os.path.join(os.path.dirname(__file__), source_file)).read())['messages']
+    result = {}
+    for message_type_id in range(1, 28):
+        result[message_type_id] = MessageDecoder(message_type_json[str(message_type_id)])
+
+    # add derived fields
+    result[4].add_field_decoder('time', TimeFieldDecoder())
+    return result
+
+
+MESSAGE_DECODERS = _load_decoders('aivdm.json')
 
 BACKUP_DECODER = MessageDecoder({
     "name": "Unknown message",
@@ -373,9 +439,10 @@ def _decoder_for_type(number):
     else:
         return BACKUP_DECODER
 
+
 class SentenceFragment:
     def __init__(self, talker, sentence_type, total_fragments, fragment_number, message_id, radio_channel, payload,
-                 checksum_valid, time=None, text=None):
+                 checksum_valid, received_time=None, text=None):
         self.talker = talker
         self.sentence_type = sentence_type
         self.total_fragments = total_fragments
@@ -384,7 +451,7 @@ class SentenceFragment:
         self.radio_channel = radio_channel
         self.payload = payload
         self.checksum_valid = checksum_valid
-        self.time = time
+        self.time = received_time
         self.text = text
 
     def initial(self):
@@ -408,6 +475,9 @@ class SentenceFragment:
 
 
 class Field(object):
+    # You would think that a Sentence would be composed of these, but 99% of usage doesn't
+    # require this level of introspection, so we avoid creating a bunch of useless objects
+    # and mainly think of sentences as a lump of bits.
     def __init__(self, field_decoder, sentence):
         self.decoder = field_decoder
         self.sentence = sentence
@@ -419,23 +489,23 @@ class Field(object):
         return self.decoder.description
 
     def value(self):
-        return self.decoder.decode(self.sentence.message_bits())
+        return self.decoder.decode(self.sentence)
 
     def bits(self):
-        return self.sentence.message_bits()[self.decoder.bit_range]
+        return self.decoder.bits(self.sentence)
 
     def valid(self):
-        return len(self.sentence.message_bits()) > self.decoder.end
+        return self.decoder.valid(self.sentence)
 
 
 class Sentence:
-    def __init__(self, talker, sentence_type, radio_channel, payload, checksum_valid, time=None, text=None):
+    def __init__(self, talker, sentence_type, radio_channel, payload, checksum_valid, received_time=None, text=None):
         self.talker = talker
         self.sentence_type = sentence_type
         self.radio_channel = radio_channel
         self.payload = payload
         self.checksum_valid = checksum_valid
-        self.time = time
+        self.time = received_time
         self.text = text
         self.type_num = int(self.payload.bits[0:6])
 
@@ -455,7 +525,10 @@ class Sentence:
         return self.payload.bits
 
     def __getitem__(self, item):
-        return self.decoder().decode(item, self.payload.bits)
+        return self.decoder().decode(item, self)
+
+    def __contains__(self, item):
+        return item in self.decoder() and self.__getitem__(item) is not None
 
     def decoder(self):
         return _decoder_for_type(self.type_num)
@@ -574,7 +647,7 @@ def _handle_serial_source(source):
                         logging.getLogger().warn("Failure for input: \"{}\"".format(raw_line.strip()), exc_info=True)
         except Exception:
             logging.getLogger().error("unexpected failure", exc_info=True)
-            sleep(1)
+            time.sleep(1)
 
 
 def _handle_url_source(source):
@@ -589,7 +662,7 @@ def _handle_url_source(source):
                     yield line.decode('utf-8')
         except Exception:
             logging.getLogger().error("unexpected failure in source {}".format(source), exc_info=True)
-            sleep(1)
+            time.sleep(1)
 
 
 def _handle_file_source(source):
