@@ -1,6 +1,5 @@
 from setuptools import setup, find_packages
 
-print("here: ", find_packages())
 setup(name='simpleais',
       version='0.6.2',
       description='a simple ais parser',
