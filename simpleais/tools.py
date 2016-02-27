@@ -16,8 +16,6 @@ from simpleais import sentences_from_source
 
 _RADIUS_OF_EARTH = 6373.0
 
-TIME_FORMAT = "%Y/%m/%d %H:%M:%S"
-
 
 @contextmanager
 def wild_disregard_for(e):
@@ -25,6 +23,10 @@ def wild_disregard_for(e):
         yield
     except e:
         exit(0)
+
+
+def time_to_text(t):
+    return strftime("%Y/%m/%d %H:%M:%S", localtime(t))
 
 
 def print_sentence_source(sentence, file=None):
@@ -143,7 +145,8 @@ def as_text(sources):
         with wild_disregard_for(BrokenPipeError):
             result = []
             if sentence.time:
-                result.append(strftime(TIME_FORMAT, localtime(sentence.time)))
+                t = sentence.time
+                result.append(time_to_text(t))
             result.append("{:2}".format(sentence.type_id()))
             result.append("{:9}".format(str(sentence['mmsi'])))
             if sentence['dest_mmsi']:
@@ -161,7 +164,7 @@ def as_text(sources):
                 result.append("{}".format(sentence['shipname']))
 
             if sentence['time']:
-                result.append(strftime(TIME_FORMAT, localtime(sentence['time'])))
+                result.append(time_to_text(sentence['time']))
 
             print(" ".join(result))
 
@@ -343,7 +346,7 @@ class SentencesInfo:
             m, s = divmod(self.time_range.range(), 60)
             h, m = divmod(m, 60)
             print("Starting on {} and running for {:02.0f}h{:02.0f}m{:02.0f}s.".format(
-                strftime(TIME_FORMAT, localtime(self.time_range.min)),
+                time_to_text(self.time_range.min),
                 h, m, s), file=file)
 
         if self.sentence_count > 0:
@@ -533,7 +536,7 @@ def dump(sources, bits):
             sentence_count += 1
             print("Sentence {}:".format(sentence_count))
             if sentence.time:
-                print("          time: {}".format(strftime(TIME_FORMAT, localtime(sentence.time))))
+                print("          time: {}".format(time_to_text(sentence.time)))
             for t in sentence.text:
                 print("          text: {}".format(re.search("!.*", t).group(0)))
             print("        length: {}".format(len(sentence.message_bits())))
@@ -555,7 +558,7 @@ def dump(sources, bits):
                         print(field)
                     if field.name() == 'time':
                         print("foo")
-                        value = strftime(TIME_FORMAT, localtime(value))
+                        value = time_to_text(value)
                 if bits:
                     print("  {:>12}: {} ({})".format(field.name(), value, field.bits()))
                 else:
