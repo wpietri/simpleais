@@ -1,4 +1,5 @@
 import tempfile
+from gzip import GzipFile
 from unittest import TestCase
 
 from testfixtures import LogCapture
@@ -41,6 +42,20 @@ class TestSourceHandling(TestCase):
                 self.assertRaises(StopIteration, sentences.__next__)
             logs.check(('root', 'WARNING', 'skipped: "garbage data"'))
 
+    def test_gzip_source_by_sentence(self):
+        with LogCapture() as logs:
+            with tempfile.NamedTemporaryFile(suffix='.gz', delete=False) as file:
+                self.write_sample_data(file, compress=True)
+                file.close()
+
+                sentences = sentences_from_source(file.name)
+                self.assertEqual(8, sentences.__next__().type_id())
+                self.assertEqual(1, sentences.__next__().type_id())
+                self.assertRaises(StopIteration, sentences.__next__)
+                os.unlink(file.name)
+
+            logs.check(('root', 'WARNING', 'skipped: "garbage data"'))
+
     def test_io_source_by_sentence(self):
         with LogCapture() as logs:
             with tempfile.NamedTemporaryFile() as file:
@@ -54,7 +69,9 @@ class TestSourceHandling(TestCase):
 
     # TODO: figure out how to test serial and url sources effectively
 
-    def write_sample_data(self, file):
+    def write_sample_data(self, file, compress=False):
+        if compress:
+            file = GzipFile(mode='w', fileobj=file)
         for line in fragmented_message_type_8:
             file.write(bytes(line, "ascii"))
             file.write(newline)

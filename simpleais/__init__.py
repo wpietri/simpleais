@@ -1,5 +1,6 @@
 import calendar
 import collections
+import gzip
 import json
 import logging
 import os
@@ -666,6 +667,10 @@ def _handle_url_source(source):
 
 
 def _handle_file_source(source):
-    with open(source) as f:
+    if source.endswith('.gz'):
+        source_reader = gzip.open(source, mode='rt')
+    else:
+        source_reader = open(source)
+    with source_reader as f:
         for line in f:
             yield line
