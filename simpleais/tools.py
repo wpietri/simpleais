@@ -132,8 +132,8 @@ def grep(sources, mmsi=None, mmsi_file=None, sentence_type=None, lon=None, lat=N
     else:
         checksum_desire = checksum == "valid"
     taster = Taster(mmsi, sentence_type, lon, lat, field, checksum_desire)
-    for sentence in sentences_from_sources(sources):
-        with wild_disregard_for(BrokenPipeError):
+    with wild_disregard_for(BrokenPipeError):
+        for sentence in sentences_from_sources(sources):
             if taster.likes(sentence):
                 print_sentence_source(sentence)
 

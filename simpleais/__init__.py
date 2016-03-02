@@ -16,6 +16,7 @@ class BitsX:
     """
     Integer implementation of bits. Currently not used, but I have hopes.
     """
+
     def __init__(self, *args):
         self.length = 0
         self.value = 0
@@ -363,6 +364,8 @@ class NmeaPayload:
 
     def _bit_range(self, start, stop):
         # Can we pull from a single lump? If so, do it and return.
+        if stop <= self.data[0].bit_length():
+            return self.data[0].bit_range(start, stop)
         result = self._quick_bit_range(start, stop)
         if result:
             return result
@@ -370,16 +373,17 @@ class NmeaPayload:
         return self._full_bit_range(start, stop)
 
     def _quick_bit_range(self, start, stop):
+        pos = 0
         offset = 0
-        result = None
-        for pos in range(0, len(self.data)):
+        end = len(self.data)
+        while pos < end:
             lump = self.data[pos]
             if offset <= start and stop <= offset + lump.bit_length():
-                result = lump.bit_range(start - offset, stop - offset)
-                return result
+                return lump.bit_range(start - offset, stop - offset)
             else:
                 offset += lump.bit_length()
-        return result
+                pos += 1
+        return None
 
     def _full_bit_range(self, start, stop):
         return Bits.join([l.bits() for l in self.data])[start:stop]
