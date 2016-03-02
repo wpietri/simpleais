@@ -256,16 +256,21 @@ class NMEAThing:
         return not self.__eq__(other)
 
 
-def _make_nmea_lookup_table():
-    lookup = {}
+def _make_nmea_lookup_tables():
+    int_lookup = {}
+    bits_lookup = {}
     for val in range(48, 88):
-        lookup[chr(val)] = Bits(val - 48, 6)
+        n = val - 48
+        int_lookup[chr(val)] = n
+        bits_lookup[chr(val)] = Bits(n, 6)
     for val in range(96, 120):
-        lookup[chr(val)] = Bits(val - 56, 6)
-    return lookup
+        n = val - 56
+        int_lookup[chr(val)] = n
+        bits_lookup[chr(val)] = Bits(n, 6)
+    return bits_lookup, int_lookup
 
 
-_nmea_lookup = _make_nmea_lookup_table()
+_nmea_lookup, _type_lookup = _make_nmea_lookup_tables()
 
 
 class NmeaLump:
@@ -274,9 +279,10 @@ class NmeaLump:
             raise ValueError("don't like a {}".format(raw_data))
         self.ascii = raw_data
         self.fill = fill_bits
+        self._length = 6 * len(self.ascii) - self.fill
 
     def bit_length(self):
-        return 6 * len(self.ascii) - self.fill
+        return self._length
 
     def bit_range(self, start, stop):
         if start < 0:
@@ -357,15 +363,25 @@ class NmeaPayload:
 
     def _bit_range(self, start, stop):
         # Can we pull from a single lump? If so, do it and return.
+        result = self._quick_bit_range(start, stop)
+        if result:
+            return result
+        # Damn. Convert it all to bits. // TODO: make faster?
+        return self._full_bit_range(start, stop)
+
+    def _quick_bit_range(self, start, stop):
         offset = 0
+        result = None
         for pos in range(0, len(self.data)):
             lump = self.data[pos]
             if offset <= start and stop <= offset + lump.bit_length():
-                return lump.bit_range(start - offset, stop - offset)
+                result = lump.bit_range(start - offset, stop - offset)
+                return result
             else:
                 offset += lump.bit_length()
+        return result
 
-        # Damn. Convert it all to bits. // TODO: make faster?
+    def _full_bit_range(self, start, stop):
         return Bits.join([l.bits() for l in self.data])[start:stop]
 
     def __repr__(self):
@@ -394,13 +410,18 @@ class BitFieldDecoder(FieldDecoder):
         self.length = 1 + end - start
         self.bit_range = slice(start, end + 1)
         self.description = description
-        self._decode = self._appropriate_decoder(data_type, name)
+        self._nmea_decode = self._appropriate_nmea_decoder(data_type, name)
+        self._bit_decode = self._appropriate_bit_decoder(data_type, name)
         self.short_bits_ok = data_type in ['s', 't', 'd']  # if we get partial text or data, that's better than nothing
 
     def __repr__(self, *args, **kwargs):
         return "FieldDecoder({}, {}, {}, {})".format(self.name, self.description, self.start, self.end)
 
-    def _appropriate_decoder(self, data_type, name):
+    def _appropriate_nmea_decoder(self, data_type, name):
+        if name == 'mmsi':
+            return self._parse_mmsi
+
+    def _appropriate_bit_decoder(self, data_type, name):
         if name == 'mmsi':
             return self._parse_mmsi
         elif name == 'lon' and data_type == 'I4':
@@ -435,9 +456,12 @@ class BitFieldDecoder(FieldDecoder):
             raise ValueError("Sorry, don't know how to parse '{}' for field '{}' yet".format(data_type, self.name))
 
     def decode(self, sentence):
+        if self._nmea_decode:
+            return self._nmea_decode(sentence.payload)
+
         bits_to_decode = self.bits(sentence)
         if self.short_bits_ok or self.length == len(bits_to_decode):
-            return self._decode(bits_to_decode)
+            return self._bit_decode(bits_to_decode)
 
     def bits(self, sentence):
         return sentence.message_bits()[self.bit_range]
@@ -445,8 +469,8 @@ class BitFieldDecoder(FieldDecoder):
     def valid(self, sentence):
         return len(sentence.message_bits()) > self.end
 
-    def _parse_mmsi(self, bits):
-        return "%09i" % int(bits)
+    def _parse_mmsi(self, payload):
+        return "%09i" % payload.unsigned_int(self.start, self.end + 1)
 
     def _parse_lon(self, bits):
         result = self._scaled_integer(bits, 4)
@@ -671,7 +695,7 @@ class Sentence:
         self.checksum_valid = checksum_valid
         self.time = received_time
         self.text = text
-        self.type_num = self.payload.unsigned_int(0, 6)
+        self.type_num = _type_lookup[payload.data[0].ascii[0]]
 
     def type_id(self):
         return self.type_num
