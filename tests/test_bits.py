@@ -38,15 +38,6 @@ class TestBits(TestCase):
         result = Bits('100') + Bits('000') + Bits('001')
         self.assertEqual(Bits('100000001'), result)
 
-    def test_append(self):
-        buf = Bits()
-        buf.append(Bits('100'))
-        self.assertEqual(Bits('100'), buf)
-        buf.append(Bits('000'))
-        self.assertEqual(Bits('100000'), buf)
-        buf.append(Bits('001'))
-        self.assertEqual(Bits('100000001'), buf)
-
     def test_extract_single_bits(self):
         bits = Bits("00011011")
         self.assertEqual(Bits('0'), Bits('0')[0])

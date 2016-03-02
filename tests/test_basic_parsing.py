@@ -251,28 +251,6 @@ class TestFragmentPool(TestCase):
         self.assertFalse(f.has_full_sentence())
 
 
-class TestNmeaPayload(TestCase):
-    def test_basic_construction(self):
-        body, fill_bits = '1', 0
-        p = NmeaPayload(body, fill_bits)
-        self.assertEqual(6, len(p))
-        self.assertEqual(Bits(1, 6), p.bits)
-
-    def test_construction_from_bits(self):
-        p = NmeaPayload(Bits('000001'))
-        self.assertEqual(6, len(p))
-        self.assertEqual('000001', str(p.bits))
-
-    def test_padding(self):
-        for fill_bits in range(0, 6):
-            payload = NmeaPayload('w', fill_bits)
-            self.assertEqual(Bits('111111')[0:(6 - fill_bits)], payload.bits,
-                             msg='failure for {} fill bits'.format(fill_bits))
-
-    def test_full_message(self):
-        body = '15NaEPPP01oR`R6CC?<j@gvr0<1C'
-        p = NmeaPayload('%s' % body, 0)
-        self.assertEqual(6 * len(body), len(p))
 
 
 class TestNameParsing(TestCase):

@@ -12,11 +12,10 @@ from io import TextIOBase
 aivdm_pattern = re.compile(r'([.0-9]+)?\s*(![A-Z]{5},\d,\d,.?,[AB12]?,[^,]+,[0-6]\*[0-9A-F]{2})')
 
 
-class BitsInt:
+class BitsX:
     """
-    Integer implementation of bits. Currently not used.
+    Integer implementation of bits. Currently not used, but I have hopes.
     """
-
     def __init__(self, *args):
         self.length = 0
         self.value = 0
@@ -42,10 +41,6 @@ class BitsInt:
         else:
             raise ValueError("don't know how to parse {}, {}".format(args[0], args[1]))
 
-    def append(self, other):
-        self.value = self.value << other.length | other.value
-        self.length = self.length + other.length
-
     def __getitem__(self, given):
         if isinstance(given, slice):
             start, stop = given.start, given.stop
@@ -69,9 +64,9 @@ class BitsInt:
         return self.value
 
     def __add__(self, other):
-        result = Bits(self)
-        result.append(other)
-        return result
+        result_value = self.value << other.length | other.value
+        result_length = self.length + other.length
+        return Bits(result_value, result_length)
 
     def __str__(self):
         if self.length == 0:
@@ -93,19 +88,22 @@ class BitsInt:
 
     @classmethod
     def join(cls, array):
-        result = Bits()
+        result_value = 0
+        result_length = 0
         for b in array:
-            result.append(b)
-        return result
+            result_value = result_value << b.length | b.value
+            result_length += b.length
+        return Bits(result_value, result_length)
 
 
 class Bits:
     """
-    A bunch of bits. You would think that rewriting this as ints would make it
-    faster, but it makes it slower. I've tried it.
+    An immutable bunch of bits, backed by y a string. You would think that rewriting
+    this as ints would make it faster, but it makes it slower. I've tried it.
     See http://stackoverflow.com/questions/20845686/python-bit-array-performant
     for possible other options.
     """
+
     def __init__(self, *args):
         if len(args) == 0:
             self.contents = ""
@@ -126,11 +124,6 @@ class Bits:
                 self.contents = format_string.format(args[0])
         else:
             raise ValueError("don't know how to parse {}, {}".format(args[0], args[1]))
-
-    def append(self, other):
-        if not isinstance(other, Bits):
-            raise ValueError
-        self.contents += other.contents
 
     def __int__(self):
         return int(self.contents, 2)
@@ -275,6 +268,45 @@ def _make_nmea_lookup_table():
 _nmea_lookup = _make_nmea_lookup_table()
 
 
+class NmeaLump:
+    def __init__(self, raw_data, fill_bits=0):
+        if not isinstance(raw_data, str):
+            raise ValueError("don't like a {}".format(raw_data))
+        self.ascii = raw_data
+        self.fill = fill_bits
+
+    def bit_length(self):
+        return 6 * len(self.ascii) - self.fill
+
+    def bit_range(self, start, stop):
+        if start < 0:
+            raise ValueError("Can't go past start for {}:{} of {}".format(start, stop, self))
+        if start > self.bit_length() - 1 or stop > self.bit_length():
+            raise ValueError("Can't go past end for {}:{} of {}".format(start, stop, self))
+        start_char = start // 6
+        stop_char = 1 + (stop - 1) // 6
+        chars = self.ascii[start_char:stop_char]
+        shift = start_char * 6
+        result = self._bits_for(chars, start - shift, stop - shift)
+        return result
+
+    def bits(self):
+        return self.bit_range(0, self.bit_length())
+
+    @staticmethod
+    def _bits_for(ascii_representation, skip, stop):
+        if len(ascii_representation) == 0:
+            return Bits()
+        elif len(ascii_representation) == 1 and skip == 0 and stop == 6:
+            return _nmea_lookup[ascii_representation[0]]
+
+        bit_lumps = [_nmea_lookup[c] for c in ascii_representation]
+        return Bits.join(bit_lumps)[skip:stop]  # TODO: avoid the double allocation here
+
+    def __repr__(self, *args, **kwargs):
+        return "NmeaLump('{}', {})".format(self.ascii, self.fill)
+
+
 # noinspection PyCallingNonCallable
 class NmeaPayload:
     """
@@ -283,22 +315,61 @@ class NmeaPayload:
 
     def __init__(self, raw_data, fill_bits=0):
         if isinstance(raw_data, Bits):
-            self.bits = raw_data
+            raise NotImplementedError
+        elif isinstance(raw_data, Bits):
+            self.data = raw_data
+        elif isinstance(raw_data, str):
+            self.data = [NmeaLump(raw_data, fill_bits)]
+        elif isinstance(raw_data, list) and isinstance(raw_data[0], NmeaLump):
+            self.data = raw_data
         else:
-            self.bits = self._bits_for(raw_data, fill_bits)
+            raise ValueError("Don't like a {}".format(raw_data))
+
+    def unsigned_int(self, start, end):
+        return int(self._bit_range(start, end))
+
+    @property
+    def bits(self):
+        return Bits.join([l.bits() for l in self.data])
 
     @staticmethod
     def _bits_for(ascii_representation, fill_bits):
-        result = Bits()
+        result = []
         for pos in range(0, len(ascii_representation) - 1):
             result.append(_nmea_lookup[ascii_representation[pos]])
         bits_at_end = 6 - fill_bits
         selected_bits = _nmea_lookup[ascii_representation[-1]][0:bits_at_end]
         result.append(selected_bits)
-        return result
+        return Bits.join(result)
 
     def __len__(self):
         return len(self.bits)
+
+    def bit_length(self):
+        return sum([l.bit_length() for l in self.data])
+
+    @classmethod
+    def join(cls, items):
+        l = []
+        for p in items:
+            l.extend(p.data)
+        return NmeaPayload(l)
+
+    def _bit_range(self, start, stop):
+        # Can we pull from a single lump? If so, do it and return.
+        offset = 0
+        for pos in range(0, len(self.data)):
+            lump = self.data[pos]
+            if offset <= start and stop <= offset + lump.bit_length():
+                return lump.bit_range(start - offset, stop - offset)
+            else:
+                offset += lump.bit_length()
+
+        # Damn. Convert it all to bits. // TODO: make faster?
+        return Bits.join([l.bits() for l in self.data])[start:stop]
+
+    def __repr__(self):
+        return "NmeaPayload({})".format(self.data.__repr__())
 
 
 class FieldDecoder:
@@ -600,7 +671,7 @@ class Sentence:
         self.checksum_valid = checksum_valid
         self.time = received_time
         self.text = text
-        self.type_num = int(self.payload.bits[0:6])
+        self.type_num = self.payload.unsigned_int(0, 6)
 
     def type_id(self):
         return self.type_num
@@ -638,7 +709,8 @@ class Sentence:
         message_bits = reduce(lambda a, b: a + b, [f.bits() for f in matching_fragments])
         text = [f.text for f in matching_fragments]
         checksum_valid = [f.checksum_valid for f in matching_fragments]
-        return Sentence(first.talker, first.sentence_type, first.radio_channel, NmeaPayload(message_bits),
+        return Sentence(first.talker, first.sentence_type, first.radio_channel,
+                        NmeaPayload.join([f.payload for f in matching_fragments]),
                         checksum_valid, first.time, text)
 
     def __repr__(self):
