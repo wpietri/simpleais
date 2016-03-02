@@ -12,7 +12,100 @@ from io import TextIOBase
 aivdm_pattern = re.compile(r'([.0-9]+)?\s*(![A-Z]{5},\d,\d,.?,[AB12]?,[^,]+,[0-6]\*[0-9A-F]{2})')
 
 
+class BitsInt:
+    """
+    Integer implementation of bits. Currently not used.
+    """
+
+    def __init__(self, *args):
+        self.length = 0
+        self.value = 0
+        if len(args) == 0:
+            pass
+        elif len(args) == 1:
+            if isinstance(args[0], str):
+                self.length = len(args[0])
+                self.value = int(args[0], 2)
+            elif isinstance(args[0], int):
+                self.length = args[0].bit_length()
+                if self.length == 0:
+                    self.length = 1
+                self.value = args[0]
+            elif isinstance(args[0], Bits):
+                self.length = args[0].length
+                self.value = args[0].value
+            else:
+                raise ValueError("don't know how to parse {}".format(args[0]))
+        elif len(args) == 2 and isinstance(args[0], int):
+            self.length = args[1]
+            self.value = args[0]
+        else:
+            raise ValueError("don't know how to parse {}, {}".format(args[0], args[1]))
+
+    def append(self, other):
+        self.value = self.value << other.length | other.value
+        self.length = self.length + other.length
+
+    def __getitem__(self, given):
+        if isinstance(given, slice):
+            start, stop = given.start, given.stop
+            if start > self.length:
+                start = self.length
+            if stop > self.length:
+                stop = self.length
+            length = stop - start
+            shift = self.length - stop
+            value = self.value >> shift & (2 ** length - 1)
+            return Bits(value, length)
+        elif isinstance(given, int):
+            if given > self.length - 1:
+                return Bits(0, 0)
+            else:
+                return self[given:given + 1]
+        else:
+            raise ValueError("not ready for " + given)
+
+    def __int__(self):
+        return self.value
+
+    def __add__(self, other):
+        result = Bits(self)
+        result.append(other)
+        return result
+
+    def __str__(self):
+        if self.length == 0:
+            return ''
+        format_string = "{:0" + str(self.length) + "b}"
+        return format_string.format(self.value)
+
+    def __repr__(self):
+        return "Bits('{}')".format(str(self))
+
+    def __eq__(self, other):
+        if isinstance(other, Bits):
+            return self.length == other.length and self.value == other.value
+        else:
+            return int(self) == int(other)
+
+    def __len__(self):
+        return self.length
+
+    @classmethod
+    def join(cls, array):
+        result = Bits()
+        for b in array:
+            result.append(b)
+        return result
+
+
 class Bits:
+    """
+    A bunch of bits. You would think that rewriting this as ints would make it
+    faster, but it makes it slower. I've tried it.
+    See http://stackoverflow.com/questions/20845686/python-bit-array-performant
+    for possible other options.
+    """
     def __init__(self, *args):
         if len(args) == 0:
             self.contents = ""
@@ -26,8 +119,11 @@ class Bits:
             else:
                 raise ValueError("don't know how to parse {}".format(args[0]))
         elif len(args) == 2 and isinstance(args[0], int):
-            format_string = "{:0" + str(args[1]) + "b}"
-            self.contents = format_string.format(args[0])
+            if args[1] == 0:
+                self.contents = ''
+            else:
+                format_string = "{:0" + str(args[1]) + "b}"
+                self.contents = format_string.format(args[0])
         else:
             raise ValueError("don't know how to parse {}, {}".format(args[0], args[1]))
 
@@ -182,11 +278,7 @@ _nmea_lookup = _make_nmea_lookup_table()
 # noinspection PyCallingNonCallable
 class NmeaPayload:
     """
-    Represents the decoded heart of an AIS message. The BitVector class used
-    is not very fast and a bit rough, but is adequate for now. If performance
-    becomes an issue, it might be worth replacing. See
-    http://stackoverflow.com/questions/20845686/python-bit-array-performant
-    for options.
+    Represents the decoded heart of an AIS message.
     """
 
     def __init__(self, raw_data, fill_bits=0):

@@ -64,3 +64,8 @@ class TestBits(TestCase):
         self.assertEqual(Bits('0001'), bits[0:4])
         self.assertEqual(Bits('000110'), bits[0:6])
         self.assertEqual(Bits('1011'), bits[4:8])
+
+    def test_invalid_range(self):
+        bits = Bits("00011011")
+        self.assertEqual(Bits('11'), bits[6:25])
+        self.assertEqual(Bits(0, 0), bits[20:25])
