@@ -73,7 +73,6 @@ class TestBasicParsing(TestCase):
         self.assertFalse(good_and_bad_2.check())
         good_and_bad = Sentence.from_fragments([good_and_bad_1, good_and_bad_2])
         self.assertFalse(good_and_bad.check())
-        self.assertEqual([True, False], good_and_bad.checksum_valid)
 
     def test_missing_channel(self):
         # seen in the wild via AISHub

@@ -12,16 +12,18 @@ from io import TextIOBase
 aivdm_pattern = re.compile(r'([.0-9]+)?\s*(![A-Z]{5},\d,\d,.?,[AB12]?,[^,]+,[0-6]\*[0-9A-F]{2})')
 
 
-class BitsX:
+class Bits:
     """
-    Integer implementation of bits. Currently not used, but I have hopes.
+    Integer implementation of bits.
     """
 
     def __init__(self, *args):
-        self.length = 0
-        self.value = 0
-        if len(args) == 0:
-            pass
+        if len(args) == 2 and isinstance(args[0], int):
+            self.length = args[1]
+            self.value = args[0]
+        elif len(args) == 0:
+            self.length = 0
+            self.value = 0
         elif len(args) == 1:
             if isinstance(args[0], str):
                 self.length = len(args[0])
@@ -88,16 +90,23 @@ class BitsX:
         return self.length
 
     @classmethod
-    def join(cls, array):
+    def join(cls, array, skip=None, stop=None):
         result_value = 0
         result_length = 0
         for b in array:
             result_value = result_value << b.length | b.value
             result_length += b.length
+        if skip:
+            result_value = result_value & (2 ** (result_length - skip) - 1)
+            result_length = result_length - skip
+        if stop and stop < result_length:
+            shift = result_length - stop
+            result_value = result_value >> shift
+            result_length = result_length - shift
         return Bits(result_value, result_length)
 
 
-class Bits:
+class Bitsx:
     """
     An immutable bunch of bits, backed by y a string. You would think that rewriting
     this as ints would make it faster, but it makes it slower. I've tried it.
@@ -151,8 +160,16 @@ class Bits:
         return "Bits({})".format(str(self))
 
     @classmethod
-    def join(cls, array):
+    def xjoin(cls, array):
         return Bits(''.join(b.contents for b in array))
+
+    @classmethod
+    def join(cls, array, start=None, stop=None):
+        result = Bits(''.join(b.contents for b in array))
+        if start and stop:
+            return result[start:stop]
+        else:
+            return result
 
 
 class StreamParser:
@@ -160,10 +177,11 @@ class StreamParser:
     Used to parse live streams of AIS messages.
     """
 
-    def __init__(self, default_to_current_time=False):
-        self.default_to_current_time = default_to_current_time
+    def __init__(self, default_to_current_time=False, log_errors=False):
         self.fragment_pool = collections.defaultdict(FragmentPool)
         self.sentence_buffer = collections.deque()
+        self.default_to_current_time = default_to_current_time
+        self.log_errors = log_errors
 
     def add(self, message_text):
         thing = parse_one(message_text, self.default_to_current_time)
@@ -175,6 +193,9 @@ class StreamParser:
             if pool.has_full_sentence():
                 sentence = pool.pop_full_sentence()
                 self.sentence_buffer.append(sentence)
+        else:
+            if self.log_errors:
+                logging.getLogger().warn("skipped: \"{}\"".format(message_text.strip()))
 
     def next_sentence(self):
         return self.sentence_buffer.popleft()
@@ -194,7 +215,8 @@ def parse_many(messages):
 
 
 # based on https://en.wikipedia.org/wiki/NMEA_0183
-def nmea_checksum(content):
+def nmea_checksum(message):
+    content = message[1:].split('*')[0]
     result = 0
     for c in content:
         result = result ^ ord(c)
@@ -223,14 +245,13 @@ def parse_one(string, default_to_current_time=False):
     fragment_count = int(fields[1])
     radio_channel = fields[4]
     payload = NmeaPayload(fields[5], int(fields[6]))
-    checksum_valid = nmea_checksum(content) == int(checksum, 16)
     if fragment_count == 1:
-        return Sentence(talker, sentence_type, radio_channel, payload, [checksum_valid], sentence_time, [message])
+        return Sentence(talker, sentence_type, radio_channel, payload, [checksum], sentence_time, [message])
     else:
         fragment_number = int(fields[2])
         message_id = fields[3]
         return SentenceFragment(talker, sentence_type, fragment_count, fragment_number,
-                                message_id, radio_channel, payload, checksum_valid, sentence_time, message)
+                                message_id, radio_channel, payload, checksum, sentence_time, message)
 
 
 def parse(message):
@@ -301,14 +322,14 @@ class NmeaLump:
         return self.bit_range(0, self.bit_length())
 
     @staticmethod
-    def _bits_for(ascii_representation, skip, stop):
+    def _bits_for(ascii_representation, start, stop):
         if len(ascii_representation) == 0:
             return Bits()
-        elif len(ascii_representation) == 1 and skip == 0 and stop == 6:
+        elif len(ascii_representation) == 1 and start == 0 and stop == 6:
             return _nmea_lookup[ascii_representation[0]]
 
         bit_lumps = [_nmea_lookup[c] for c in ascii_representation]
-        return Bits.join(bit_lumps)[skip:stop]  # TODO: avoid the double allocation here
+        return Bits.join(bit_lumps)[start:stop]  # TODO: avoid the double allocation here
 
     def __repr__(self, *args, **kwargs):
         return "NmeaLump('{}', {})".format(self.ascii, self.fill)
@@ -634,7 +655,7 @@ def _decoder_for_type(number):
 
 class SentenceFragment:
     def __init__(self, talker, sentence_type, total_fragments, fragment_number, message_id, radio_channel, payload,
-                 checksum_valid, received_time=None, text=None):
+                 checksum, received_time=None, text=None):
         self.talker = talker
         self.sentence_type = sentence_type
         self.total_fragments = total_fragments
@@ -642,7 +663,7 @@ class SentenceFragment:
         self.message_id = message_id
         self.radio_channel = radio_channel
         self.payload = payload
-        self.checksum_valid = checksum_valid
+        self.checksum = checksum
         self.time = received_time
         self.text = text
 
@@ -663,7 +684,7 @@ class SentenceFragment:
         return self.payload.bits
 
     def check(self):
-        return self.checksum_valid
+        return int(self.checksum, 16) == nmea_checksum(self.text)
 
 
 class Field(object):
@@ -691,12 +712,12 @@ class Field(object):
 
 
 class Sentence:
-    def __init__(self, talker, sentence_type, radio_channel, payload, checksum_valid, received_time=None, text=None):
+    def __init__(self, talker, sentence_type, radio_channel, payload, checksums, received_time=None, text=None):
         self.talker = talker
         self.sentence_type = sentence_type
         self.radio_channel = radio_channel
         self.payload = payload
-        self.checksum_valid = checksum_valid
+        self.checksums = checksums
         self.time = received_time
         self.text = text
         self.type_num = _type_lookup[payload.data[0].ascii[0]]
@@ -705,7 +726,8 @@ class Sentence:
         return self.type_num
 
     def check(self):
-        return reduce(lambda a, b: a and b, self.checksum_valid)
+        checks = [nmea_checksum(t) == int(c, 16) for t, c in (zip(self.text, self.checksums))]
+        return reduce(lambda a, b: a and b, checks)
 
     def location(self):
         lon = self['lon']
@@ -736,10 +758,10 @@ class Sentence:
         first = matching_fragments[0]
         message_bits = reduce(lambda a, b: a + b, [f.bits() for f in matching_fragments])
         text = [f.text for f in matching_fragments]
-        checksum_valid = [f.checksum_valid for f in matching_fragments]
+        checksums = [f.checksum for f in matching_fragments]
         return Sentence(first.talker, first.sentence_type, first.radio_channel,
                         NmeaPayload.join([f.payload for f in matching_fragments]),
-                        checksum_valid, first.time, text)
+                        checksums, first.time, text)
 
     def __repr__(self):
         return "Sentence({}, {})".format(self.time, self.text)
@@ -812,8 +834,8 @@ def fragments_from_source(source):
 
 
 def sentences_from_source(source):
-    parser = StreamParser()
-    for fragment in fragments_from_source(source):
+    parser = StreamParser(log_errors=True)
+    for fragment in lines_from_source(source):
         # noinspection PyBroadException
         try:
             parser.add(fragment)

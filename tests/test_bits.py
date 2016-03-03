@@ -34,6 +34,18 @@ class TestBits(TestCase):
         buf = [Bits('100'), Bits('000'), Bits('001')]
         self.assertEqual(Bits('100000001'), Bits.join(buf))
 
+    def test_join_with_trimming(self):
+        self.assertEqual(Bits('1'), Bits.join([Bits('1')], 0, 1))
+        self.assertEqual(Bits('1'), Bits.join([Bits('10')], 0, 1))
+        self.assertEqual(Bits('0'), Bits.join([Bits('10')], 1, 2))
+
+        buf = [Bits('100'), Bits('000'), Bits('001')]
+        self.assertEqual(Bits('100000001'), Bits.join(buf))
+        self.assertEqual(Bits('100000001'), Bits.join(buf, 0, 9))
+        self.assertEqual(Bits('00000001'), Bits.join(buf, 1, 9))
+        self.assertEqual(Bits('10000000'), Bits.join(buf, 0, 8))
+        self.assertEqual(Bits('0000000'), Bits.join(buf, 1, 7))
+
     def test_add(self):
         result = Bits('100') + Bits('000') + Bits('001')
         self.assertEqual(Bits('100000001'), result)

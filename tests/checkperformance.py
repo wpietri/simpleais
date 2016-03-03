@@ -1,5 +1,5 @@
-from collections import defaultdict
 import time
+from collections import defaultdict
 
 from simpleais import lines_from_source, sentences_from_source
 
@@ -27,7 +27,7 @@ class Counter:
 
 
 counter = Counter()
-filename = 'sample.ais'
+filename = '/home/william/projects/simpleais/interval-20160210.ais'
 
 
 def fake_thing():
