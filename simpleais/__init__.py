@@ -289,7 +289,7 @@ def _make_nmea_lookup_tables():
     return bits_lookup, int_lookup
 
 
-_nmea_lookup, _type_lookup = _make_nmea_lookup_tables()
+_bits_lookup, _int_lookup = _make_nmea_lookup_tables()
 
 
 class NmeaLump:
@@ -302,6 +302,31 @@ class NmeaLump:
 
     def bit_length(self):
         return self._length
+
+    def int_for_bit_range(self, start, stop):
+        if start < 0:
+            raise ValueError("Can't go past start for {}:{} of {}".format(start, stop, self))
+        if start > self.bit_length() - 1 or stop > self.bit_length():
+            raise ValueError("Can't go past end for {}:{} of {}".format(start, stop, self))
+        start_char = start // 6
+        stop_char = 1 + (stop - 1) // 6
+        result = 0
+        length = 0
+        for c in self.ascii[start_char:stop_char]:
+            result = result << 6
+            length += 6
+            result = result | _int_lookup[c]
+        shift = start_char * 6
+        front_trim = start - shift
+        if front_trim > 0:
+            length -= front_trim
+            result = result & (2 ** length - 1)
+        end_trim = length - (stop - start)
+        if end_trim > 0:
+            length -= end_trim
+            result = result >> end_trim
+
+        return result
 
     def bit_range(self, start, stop):
         if start < 0:
@@ -323,9 +348,9 @@ class NmeaLump:
         if len(ascii_representation) == 0:
             return Bits()
         elif len(ascii_representation) == 1 and start == 0 and stop == 6:
-            return _nmea_lookup[ascii_representation[0]]
+            return _bits_lookup[ascii_representation[0]]
 
-        bit_lumps = [_nmea_lookup[c] for c in ascii_representation]
+        bit_lumps = [_bits_lookup[c] for c in ascii_representation]
         return Bits.join(bit_lumps, start, stop)
 
     def __repr__(self, *args, **kwargs):
@@ -361,9 +386,9 @@ class NmeaPayload:
     def _bits_for(ascii_representation, fill_bits):
         result = []
         for pos in range(0, len(ascii_representation) - 1):
-            result.append(_nmea_lookup[ascii_representation[pos]])
+            result.append(_bits_lookup[ascii_representation[pos]])
         bits_at_end = 6 - fill_bits
-        selected_bits = _nmea_lookup[ascii_representation[-1]][0:bits_at_end]
+        selected_bits = _bits_lookup[ascii_representation[-1]][0:bits_at_end]
         result.append(selected_bits)
         return Bits.join(result)
 
@@ -380,10 +405,19 @@ class NmeaPayload:
             l.extend(p.data)
         return NmeaPayload(l)
 
+    def _int_for_bit_range(self, start, stop):
+        # Can we pull from the first lump?
+        if stop <= self.data[0].bit_length():
+            return self.data[0].int_for_bit_range(start, stop)
+
+        # most ints are in the first lump, so ignore other complexity for now
+        return int(self._bit_range(start, stop))
+
     def _bit_range(self, start, stop):
-        # Can we pull from a single lump? If so, do it and return.
+        # Can we pull from the first lump?
         if stop <= self.data[0].bit_length():
             return self.data[0].bit_range(start, stop)
+        # Can we pull from any single lump?
         result = self._quick_bit_range(start, stop)
         if result:
             return result
@@ -492,7 +526,7 @@ class BitFieldDecoder(FieldDecoder):
         return len(sentence.message_bits()) > self.end
 
     def _parse_mmsi(self, payload):
-        return "%09i" % payload.unsigned_int(self.start, self.end + 1)
+        return "%09i" % payload._int_for_bit_range(self.start, self.end + 1)
 
     def _parse_lon(self, bits):
         result = self._scaled_integer(bits, 4)
@@ -717,7 +751,8 @@ class Sentence:
         self.checksums = checksums
         self.time = received_time
         self.text = text
-        self.type_num = _type_lookup[payload.data[0].ascii[0]]
+        self.type_num = _int_lookup[payload.data[0].ascii[0]]
+        self._decoder = _decoder_for_type(self.type_num)
 
     def type_id(self):
         return self.type_num
@@ -736,19 +771,16 @@ class Sentence:
         return self.payload.bits
 
     def __getitem__(self, item):
-        return self.decoder().decode(item, self)
+        return self._decoder.decode(item, self)
 
     def __contains__(self, item):
-        return item in self.decoder() and self.__getitem__(item) is not None
-
-    def decoder(self):
-        return _decoder_for_type(self.type_num)
+        return item in self._decoder and self.__getitem__(item) is not None
 
     def field(self, key):
-        return Field(self.decoder().field(key), self)
+        return Field(self._decoder.field(key), self)
 
     def fields(self):
-        return [Field(fd, self) for fd in self.decoder().fields()]
+        return [Field(fd, self) for fd in self._decoder.fields()]
 
     @classmethod
     def from_fragments(cls, matching_fragments):

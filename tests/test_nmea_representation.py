@@ -22,6 +22,17 @@ class TestNmeaLump(TestCase):
         self.assertEqual(Bits(2, 4), l.bit_range(52, 56))
         self.assertEqual(Bits(22, 5), l.bit_range(56, 61))
 
+    def test_int_for_bit_range(self):
+        self.assertEqual(5, NmeaLump("5").int_for_bit_range(0, 6))
+        self.assertEqual(2, NmeaLump("5").int_for_bit_range(0, 5))
+        self.assertEqual(5, NmeaLump("5").int_for_bit_range(3, 6))
+        self.assertEqual(2, NmeaLump("5").int_for_bit_range(3, 5))
+
+        l = NmeaLump('402M45iv0c?NN0dST0TPK@7008Aq', 0)
+        self.assertEqual(2016, l.int_for_bit_range(38, 52))
+        self.assertEqual(2, l.int_for_bit_range(52, 56))
+        self.assertEqual(22, l.int_for_bit_range(56, 61))
+
     def test_bounds(self):
         l = NmeaLump('1', 0)
         self.assertRaises(ValueError, l.bit_range, -1, 0)
