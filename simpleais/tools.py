@@ -64,23 +64,6 @@ def cat(sources):
             print_sentence_source(sentence)
 
 
-def likes(field, lat, lon, mmsi, sentence, sentence_type):
-    factors = [True]
-    if len(mmsi) > 0:
-        factors.append(sentence['mmsi'] in mmsi)
-    if sentence_type:
-        factors.append(sentence.type_id() in sentence_type)
-    if lon:
-        factors.append(sentence.location() is not None and lon[0] < sentence['lon'] < lon[1])
-    if lat and sentence.location():
-        factors.append(sentence.location() is not None and lat[0] < sentence['lat'] < lat[1])
-    if field:
-        for f in field:
-            factors.append(sentence[f] is not None)
-    result = functools.reduce(lambda x, y: x and y, factors)
-    return result
-
-
 class Taster(object):
     pass
 
@@ -98,10 +81,12 @@ class Taster(object):
             factors.append(sentence['mmsi'] in self.mmsi)
         if self.sentence_type:
             factors.append(sentence.type_id() in self.sentence_type)
-        if self.lon:
-            factors.append(sentence.location() is not None and self.lon[0] <= sentence['lon'] <= self.lon[1])
-        if self.lat:
-            factors.append(sentence.location() is not None and self.lat[0] <= sentence['lat'] <= self.lat[1])
+        if self.lon or self.lat:
+            loc = sentence.location()
+            if self.lon:
+                factors.append(loc is not None and self.lon[0] <= loc[0] <= self.lon[1])
+            if self.lat:
+                factors.append(loc is not None and self.lat[0] <= loc[1] <= self.lat[1])
         if self.field:
             for f in self.field:
                 factors.append(sentence[f] is not None)

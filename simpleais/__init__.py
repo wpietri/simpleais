@@ -99,6 +99,7 @@ class Bits:
         if skip:
             result_value = result_value & (2 ** (result_length - skip) - 1)
             result_length = result_length - skip
+            stop = stop - skip
         if stop and stop < result_length:
             shift = result_length - stop
             result_value = result_value >> shift
@@ -160,16 +161,12 @@ class Bitsx:
         return "Bits({})".format(str(self))
 
     @classmethod
-    def xjoin(cls, array):
-        return Bits(''.join(b.contents for b in array))
-
-    @classmethod
     def join(cls, array, start=None, stop=None):
-        result = Bits(''.join(b.contents for b in array))
-        if start and stop:
-            return result[start:stop]
+        result = ''.join(b.contents for b in array)
+        if stop:
+            return Bits(result[start:stop])
         else:
-            return result
+            return Bits(result)
 
 
 class StreamParser:
@@ -329,7 +326,7 @@ class NmeaLump:
             return _nmea_lookup[ascii_representation[0]]
 
         bit_lumps = [_nmea_lookup[c] for c in ascii_representation]
-        return Bits.join(bit_lumps)[start:stop]  # TODO: avoid the double allocation here
+        return Bits.join(bit_lumps, start, stop)
 
     def __repr__(self, *args, **kwargs):
         return "NmeaLump('{}', {})".format(self.ascii, self.fill)
@@ -756,7 +753,6 @@ class Sentence:
     @classmethod
     def from_fragments(cls, matching_fragments):
         first = matching_fragments[0]
-        message_bits = reduce(lambda a, b: a + b, [f.bits() for f in matching_fragments])
         text = [f.text for f in matching_fragments]
         checksums = [f.checksum for f in matching_fragments]
         return Sentence(first.talker, first.sentence_type, first.radio_channel,

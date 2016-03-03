@@ -44,7 +44,7 @@ class TestBits(TestCase):
         self.assertEqual(Bits('100000001'), Bits.join(buf, 0, 9))
         self.assertEqual(Bits('00000001'), Bits.join(buf, 1, 9))
         self.assertEqual(Bits('10000000'), Bits.join(buf, 0, 8))
-        self.assertEqual(Bits('0000000'), Bits.join(buf, 1, 7))
+        self.assertEqual(Bits('0000000'), Bits.join(buf, 1, 8))
 
     def test_add(self):
         result = Bits('100') + Bits('000') + Bits('001')
