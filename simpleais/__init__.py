@@ -405,7 +405,10 @@ class NmeaPayload:
             l.extend(p.data)
         return NmeaPayload(l)
 
-    def _int_for_bit_range(self, start, stop):
+    def has_bits(self, start, stop):
+        return stop < len(self)
+
+    def int_for_bit_range(self, start, stop):
         # Can we pull from the first lump?
         if stop <= self.data[0].bit_length():
             return self.data[0].int_for_bit_range(start, stop)
@@ -476,10 +479,6 @@ class BitFieldDecoder(FieldDecoder):
     def _appropriate_nmea_decoder(self, data_type, name):
         if name == 'mmsi':
             return self._parse_mmsi
-
-    def _appropriate_bit_decoder(self, data_type, name):
-        if name == 'mmsi':
-            return self._parse_mmsi
         elif name == 'lon' and data_type == 'I4':
             return self._parse_lon
         elif name == 'lat' and data_type == 'I4':
@@ -488,14 +487,18 @@ class BitFieldDecoder(FieldDecoder):
             return lambda b: None  # Type 17 is weird; ignore for now
         elif name == 'lat' and data_type == 'I1':
             return lambda b: None  # Type 17 is weird; ignore for now
+
+    def _appropriate_bit_decoder(self, data_type, name):
+        if name == 'mmsi':
+            return self._parse_mmsi
         elif data_type == 't' or data_type == 's':
             return self._parse_text
         elif data_type == 'I3':
-            return lambda b: self._scaled_integer(b, 3)
+            return lambda b: self._scaled_integer_from_bits(b, 3)
         elif data_type == 'I1':
-            return lambda b: self._scaled_integer(b, 1)
+            return lambda b: self._scaled_integer_from_bits(b, 1)
         elif data_type == 'I4':
-            return lambda b: self._scaled_integer(b, 4)
+            return lambda b: self._scaled_integer_from_bits(b, 4)
         elif data_type == 'u':
             return lambda b: int(b)
         elif data_type == 'd':
@@ -526,24 +529,33 @@ class BitFieldDecoder(FieldDecoder):
         return len(sentence.message_bits()) > self.end
 
     def _parse_mmsi(self, payload):
-        return "%09i" % payload._int_for_bit_range(self.start, self.end + 1)
+        return "%09i" % payload.int_for_bit_range(self.start, self.end + 1)
 
-    def _parse_lon(self, bits):
-        result = self._scaled_integer(bits, 4)
+    def _parse_lon(self, payload):
+        if not payload.has_bits(self.start, self.end + 1):
+            return None
+        result = self._scale_integer(payload.int_for_bit_range(self.start, self.end + 1), 4)
         if result is not None and result != 181.0 and -180 <= result <= 180.0:
             return result
 
-    def _parse_lat(self, bits):
-        result = self._scaled_integer(bits, 4)
+    def _parse_lat(self, payload):
+        if not payload.has_bits(self.start, self.end + 1):
+            return None
+        result = self._scale_integer(payload.int_for_bit_range(self.start, self.end + 1), 4)
         if result is not None and result != 91.0 and -90.0 <= result <= 90.0:
             return result
+
+    def _scale_integer(self, i, scale):
+        out = self._twos_comp(int(i), self.length)
+        result = round(out / 60 / (10 ** scale), 4)
+        return result
 
     def _twos_comp(self, val, length):
         if (val & (1 << (length - 1))) != 0:  # if sign bit is set e.g., 8bit: 128-255
             val = val - (1 << length)  # compute negative value
         return val
 
-    def _scaled_integer(self, bits, scale):
+    def _scaled_integer_from_bits(self, bits, scale):
         out = self._twos_comp(int(bits), len(bits))
         result = round(out / 60 / (10 ** scale), 4)
         return result
