@@ -393,7 +393,7 @@ class NmeaPayload:
         return Bits.join(result)
 
     def __len__(self):
-        return len(self.bits)
+        return self.bit_length()
 
     def bit_length(self):
         return sum([l.bit_length() for l in self.data])
@@ -406,7 +406,7 @@ class NmeaPayload:
         return NmeaPayload(l)
 
     def has_bits(self, start, stop):
-        return stop < len(self)
+        return stop < self.bit_length()
 
     def int_for_bit_range(self, start, stop):
         # Can we pull from the first lump?
