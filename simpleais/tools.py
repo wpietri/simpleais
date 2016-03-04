@@ -59,6 +59,7 @@ def sentences_from_sources(sources):
 @click.command()
 @click.argument('sources', nargs=-1)
 def cat(sources):
+    """ Prints out all complete AIS transmissions.  """
     for sentence in sentences_from_sources(sources):
         with wild_disregard_for(BrokenPipeError):
             print_sentence_source(sentence)
@@ -105,6 +106,7 @@ class Taster(object):
 @click.option('--field', '-f', multiple=True)
 @click.option('--checksum', type=click.Choice(['valid', 'invalid']))
 def grep(sources, mmsi=None, mmsi_file=None, sentence_type=None, lon=None, lat=None, field=None, checksum=None):
+    """ Filters AIS transmissions.  """
     if not mmsi:
         mmsi = []
     if mmsi_file:
@@ -123,9 +125,56 @@ def grep(sources, mmsi=None, mmsi_file=None, sentence_type=None, lon=None, lat=N
                 print_sentence_source(sentence)
 
 
+def location_match(locations, sentence):
+    """
+    Check to see if a packet's position is in any of the given locations.
+    Go to some trouble to make sure we don't do any more fetching from
+    the sentence than necessary, as that's relatively slow.
+    """
+    l = locations[0]
+    lon = sentence['lon']
+    lat = None
+    if lon and l[0] <= lon <= l[1]:
+        lat = sentence['lat']
+        if lat and l[2] <= lat <= l[3]:
+            return True
+
+    if lon and lat:
+        pos = 1
+        while pos < len(locations):
+            l = locations[pos]
+            if l[0] <= lon <= l[1]:
+                lat = sentence['lat']
+                if l[2] <= lat <= l[3]:
+                    return True
+            pos += 1
+    return False
+
+
+@click.command()
+@click.argument('sources', nargs=-1)
+@click.option('--location', '-l', type=(float, float, float, float), multiple=True,
+              help='lonmin, lonmax, latmin, latmax')
+def loc(sources, location):
+    """Prints transmissions from sources in or that have passed through given region(s)."""
+    if len(location) < 1:
+        raise click.UsageError("at least one location required.")
+    mmsis = set()
+
+    with wild_disregard_for(BrokenPipeError):
+        for sentence in sentences_from_sources(sources):
+            mmsi = sentence['mmsi']
+            if mmsi in mmsis:
+                print_sentence_source(sentence)
+            elif location_match(location, sentence):
+                mmsis.add(mmsi)
+                print_sentence_source(sentence)
+
+
 @click.command()
 @click.argument('sources', nargs=-1)
 def as_text(sources):
+    """ Simple text display, one line per AIS sentence. """
     for sentence in sentences_from_sources(sources):
         with wild_disregard_for(BrokenPipeError):
             result = []
@@ -158,6 +207,7 @@ def as_text(sources):
 @click.argument('source', nargs=1)
 @click.argument('dest', nargs=1, required=False)
 def burst(source, dest):
+    """ Takes large AIS files and splits them up by sender. """
     if not dest:
         dest = source
     writers = {}
@@ -460,6 +510,7 @@ class DensityMap:
 @click.option('--by-type', '-t', is_flag=True)
 @click.option('--point', '-p', type=(float, float), multiple=True)
 def info(sources, individual, by_type, show_map, point):
+    """ Summarizes AIS transmissions. """
     sentences_info = SentencesInfo(by_type)
     sender_info = defaultdict(SenderInfo)
     geo_info = GeoInfo()
@@ -513,6 +564,7 @@ def chunks(l, n):
 @click.argument('sources', nargs=-1)
 @click.option('--bits', '-b', is_flag=True)
 def dump(sources, bits):
+    """ Gives a detailed dump of each AIS sentence. """
     sentence_count = 0
     for sentence in sentences_from_sources(sources):
         with wild_disregard_for(BrokenPipeError):
