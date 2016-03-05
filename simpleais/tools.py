@@ -444,7 +444,7 @@ class DensityMap:
                     self.height_scale * self.geo_info.height() * self.width() / self.geo_info.width())
             else:
                 self.cached_height = int(self.height_scale * self.width())
-        return self.cached_height
+        return min(self.desired_width, max(1, self.cached_height))
 
     def width(self):
         return self.desired_width
@@ -591,6 +591,19 @@ def dump(sources, bits):
                     print("  {:>12}: {} ({})".format(field.name(), value, field.bits()))
                 else:
                     print("  {:>12}: {}".format(field.name(), value))
+
+
+@click.command()
+@click.argument('sources', nargs=-1)
+@click.option('--field', '-f')
+def stat(sources, field):
+    counts = defaultdict(int)
+    for sentence in sentences_from_sources(sources):
+        val = sentence[field]
+        if val:
+            counts[val] += 1
+    for key in sorted(counts, key=lambda k: counts[k], reverse=True):
+        print("{}\t{}".format(key, counts[key]))
 
 
 # used for profiling; call with something like "grep ../tests/sample.ais -t 20"

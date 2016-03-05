@@ -155,18 +155,29 @@ class TestDensityMap(TestCase):
             '+---+',
         ], m.to_text())
 
-    def test_funky_example(self):
+    def test_very_narrow(self):
         m = DensityMap(4, height_scale=1)
-        m.add((-118.4680, 33.7419))
-        m.add((-118.4677, 33.7418))
-        m.add((-118.4675, 33.7417))
-        m.add((-118.4672, 33.7415))
+        m.add((49.5124, 33.7578))
+        m.add((-118.2598, 33.7579))
         self.assertListEqual([
             '+----+',
-            '|999 |',
-            '|   9|',
+            '|9  9|',
             '+----+',
         ], m.to_text())
+
+    def test_very_tall(self):
+        m = DensityMap(4, height_scale=1)
+        m.add((49.5123, -33.7578))
+        m.add((49.5123, 33.7578))
+        self.assertListEqual([
+            '+----+',
+            '|  9 |',
+            '|    |',
+            '|    |',
+            '|  9 |',
+            '+----+',
+        ], m.to_text())
+
 
     def test_mark(self):
         m = DensityMap(3, height_scale=1)
@@ -194,6 +205,18 @@ class TestDensityMap(TestCase):
             '+---+',
         ], m.to_text())
 
+    def test_funky_example_1(self):
+        m = DensityMap(4, height_scale=1)
+        m.add((-118.4680, 33.7419))
+        m.add((-118.4677, 33.7418))
+        m.add((-118.4675, 33.7417))
+        m.add((-118.4672, 33.7415))
+        self.assertListEqual([
+            '+----+',
+            '|999 |',
+            '|   9|',
+            '+----+',
+        ], m.to_text())
 
 class TestBucketer(TestCase):
     def test_basics(self):

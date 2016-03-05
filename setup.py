@@ -21,6 +21,7 @@ setup(name='simpleais',
               'aisburst = simpleais.tools:burst',
               'aisinfo = simpleais.tools:info',
               'aisdump = simpleais.tools:dump',
+              'aisstat = simpleais.tools:stat',
           ],
       },
       )
