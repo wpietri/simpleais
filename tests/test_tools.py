@@ -294,6 +294,11 @@ class TestTaster(TestCase):
         self.assertFalse(taster.likes(good))
         self.assertTrue(taster.likes(bad))
 
+    def test_invert_match(self):
+        taster = Taster(lat=(32, 35), invert_match=True)  # LA
+        self.assertFalse(taster.likes(self.type_1_la))
+        self.assertTrue(taster.likes(self.type_1_sf))
+
 
 from click.testing import CliRunner
 

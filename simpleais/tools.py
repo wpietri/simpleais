@@ -68,13 +68,15 @@ def cat(sources):
 class Taster(object):
     pass
 
-    def __init__(self, mmsi=None, sentence_type=None, lon=None, lat=None, field=None, checksum=None):
+    def __init__(self, mmsi=None, sentence_type=None, lon=None, lat=None, field=None, checksum=None,
+                 invert_match=False):
         self.mmsi = mmsi
         self.sentence_type = sentence_type
         self.lon = lon
         self.lat = lat
         self.field = field
         self.checksum = checksum
+        self.invert_match = invert_match
 
     def likes(self, sentence):
         factors = [True]
@@ -93,7 +95,11 @@ class Taster(object):
                 factors.append(sentence[f] is not None)
         if self.checksum is not None:
             factors.append(sentence.check() == self.checksum)
-        return functools.reduce(lambda x, y: x and y, factors)
+        result = functools.reduce(lambda x, y: x and y, factors)
+        if self.invert_match:
+            return not result
+        else:
+            return result
 
 
 @click.command()
@@ -105,7 +111,9 @@ class Taster(object):
 @click.option('--latitude', '--lat', nargs=2, type=float)
 @click.option('--field', '-f', multiple=True)
 @click.option('--checksum', type=click.Choice(['valid', 'invalid']))
-def grep(sources, mmsi=None, mmsi_file=None, sentence_type=None, lon=None, lat=None, field=None, checksum=None):
+@click.option('--invert-match', '-v', is_flag=True)
+def grep(sources, mmsi=None, mmsi_file=None, sentence_type=None, lon=None, lat=None, field=None, checksum=None,
+         invert_match=False):
     """ Filters AIS transmissions.  """
     if not mmsi:
         mmsi = frozenset()
@@ -116,7 +124,7 @@ def grep(sources, mmsi=None, mmsi_file=None, sentence_type=None, lon=None, lat=N
         checksum_desire = None
     else:
         checksum_desire = checksum == "valid"
-    taster = Taster(mmsi, sentence_type, lon, lat, field, checksum_desire)
+    taster = Taster(mmsi, sentence_type, lon, lat, field, checksum_desire, invert_match)
     with wild_disregard_for(BrokenPipeError):
         for sentence in sentences_from_sources(sources):
             if taster.likes(sentence):
