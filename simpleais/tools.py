@@ -108,12 +108,10 @@ class Taster(object):
 def grep(sources, mmsi=None, mmsi_file=None, sentence_type=None, lon=None, lat=None, field=None, checksum=None):
     """ Filters AIS transmissions.  """
     if not mmsi:
-        mmsi = []
+        mmsi = frozenset()
     if mmsi_file:
-        mmsi = list(mmsi)
-        with open(mmsi_file, "r") as f:
-            mmsi.extend([l.strip() for l in f.readlines()])
         mmsi = frozenset(mmsi)
+        mmsi = mmsi.union(read_mmsi_file(mmsi_file))
     if checksum is None:
         checksum_desire = None
     else:
@@ -123,6 +121,11 @@ def grep(sources, mmsi=None, mmsi_file=None, sentence_type=None, lon=None, lat=N
         for sentence in sentences_from_sources(sources):
             if taster.likes(sentence):
                 print_sentence_source(sentence)
+
+
+def read_mmsi_file(mmsi_file):
+    with open(mmsi_file, "r") as f:
+        return frozenset([l.strip() for l in f.readlines()])
 
 
 def location_match(locations, sentence):
@@ -149,26 +152,6 @@ def location_match(locations, sentence):
                     return True
             pos += 1
     return False
-
-
-@click.command()
-@click.argument('sources', nargs=-1)
-@click.option('--location', '-l', type=(float, float, float, float), multiple=True,
-              help='lonmin, lonmax, latmin, latmax')
-def loc(sources, location):
-    """Prints transmissions from sources in or that have passed through given region(s)."""
-    if len(location) < 1:
-        raise click.UsageError("at least one location required.")
-    mmsis = set()
-
-    with wild_disregard_for(BrokenPipeError):
-        for sentence in sentences_from_sources(sources):
-            mmsi = sentence['mmsi']
-            if mmsi in mmsis:
-                print_sentence_source(sentence)
-            elif location_match(location, sentence):
-                mmsis.add(mmsi)
-                print_sentence_source(sentence)
 
 
 @click.command()
