@@ -61,7 +61,7 @@ class Bits:
             else:
                 return self[given:given + 1]
         else:
-            raise ValueError("not ready for " + given)
+            raise ValueError("not ready for {}".format(given))
 
     def __int__(self):
         return self.value
@@ -298,7 +298,7 @@ class NmeaLump:
 # noinspection PyCallingNonCallable
 class NmeaPayload:
     """
-    Represents the decoded heart of an AIS message.
+    Represents the heart of an AIS message plus related decoding.
     """
 
     def __init__(self, raw_data, fill_bits=0):
@@ -344,7 +344,7 @@ class NmeaPayload:
         return NmeaPayload(l)
 
     def has_bits(self, start, stop):
-        return stop < self.bit_length()
+        return start >= 0 and stop < self.bit_length()
 
     def int_for_bit_range(self, start, stop):
         # Can we pull from the first lump?
@@ -353,6 +353,15 @@ class NmeaPayload:
 
         # most ints are in the first lump, so ignore other complexity for now
         return int(self._bit_range(start, stop))
+
+    def _twos_comp(self, val, length):
+        if (val & (1 << (length - 1))) != 0:  # if sign bit is set e.g., 8bit: 128-255
+            val = val - (1 << length)  # compute negative value
+        return val
+
+    def scaled_int_for_bit_range(self, start, stop, scale):
+        out = self._twos_comp(self.int_for_bit_range(start, stop), stop - start)
+        return round(out / 60 / (10 ** scale), 4)
 
     def text_for_bit_range(self, start, stop):
         bits = self._bit_range(start, stop)
@@ -421,9 +430,6 @@ class BitFieldDecoder(FieldDecoder):
         self.bit_range = slice(start, end + 1)
         self.description = description
         self._nmea_decode = self._appropriate_nmea_decoder(data_type, name)
-        self._bit_decode = None
-        if not self._nmea_decode:
-            self._bit_decode = self._appropriate_bit_decoder(data_type, name)
         self.short_bits_ok = data_type in ['s', 't', 'd']  # if we get partial text or data, that's better than nothing
 
     def __repr__(self, *args, **kwargs):
@@ -442,36 +448,36 @@ class BitFieldDecoder(FieldDecoder):
             return lambda b: None  # Type 17 is weird; ignore for now
         elif data_type == 't' or data_type == 's':
             return self._parse_text
+        elif data_type == 'I1':
+            return lambda p: self.scaled_int(p, 1)
+        elif data_type == 'I3':
+            return lambda p: self.scaled_int(p, 3)
+        elif data_type == 'I4':
+            return lambda p: self.scaled_int(p, 4)
+        elif data_type == 'u':
+            return self.int
+        elif data_type == 'U1':
+            return lambda p: self.int(p) / 10.0
+        elif data_type == 'd':
+            return lambda p: p.bits[self.start:self.end + 1]
+        elif data_type == 'e':
+            return lambda p: "enum-{}".format(self.int(p))  # TODO: find and include enumerated types
+        elif data_type == 'b':
+            return lambda p: self.int(p) == 1
+        elif data_type == 'x':
+            return self.int
+
+    def int(self, payload):
+        return payload.int_for_bit_range(self.start, self.end + 1)
+
+    def scaled_int(self, payload, scale):
+        return payload.scaled_int_for_bit_range(self.start, self.end + 1, scale)
 
     def _appropriate_bit_decoder(self, data_type, name):
-        if data_type == 'I3':
-            return lambda b: self._scaled_integer_from_bits(b, 3)
-        elif data_type == 'I1':
-            return lambda b: self._scaled_integer_from_bits(b, 1)
-        elif data_type == 'I4':
-            return lambda b: self._scaled_integer_from_bits(b, 4)
-        elif data_type == 'u':
-            return lambda b: int(b)
-        elif data_type == 'd':
-            return lambda b: b
-        elif data_type == 'U1':
-            return lambda b: int(b) / 10.0
-        elif data_type == 'e':
-            return lambda b: "enum-{}".format(int(b))  # TODO: find and include enumerated types
-        elif data_type == 'b':
-            return lambda b: b == 1
-        elif data_type == 'x':
-            return lambda b: int(b)
-        else:
-            raise ValueError("Sorry, don't know how to parse '{}' for field '{}' yet".format(data_type, self.name))
+        raise ValueError("Sorry, don't know how to parse '{}' for field '{}' yet".format(data_type, self.name))
 
     def decode(self, sentence):
-        if self._nmea_decode:
-            return self._nmea_decode(sentence.payload)
-
-        bits_to_decode = self.bits(sentence)
-        if self.short_bits_ok or self.length == len(bits_to_decode):
-            return self._bit_decode(bits_to_decode)
+        return self._nmea_decode(sentence.payload)
 
     def bits(self, sentence):
         return sentence.message_bits()[self.bit_range]
@@ -485,31 +491,16 @@ class BitFieldDecoder(FieldDecoder):
     def _parse_lon(self, payload):
         if not payload.has_bits(self.start, self.end + 1):
             return None
-        result = self._scale_integer(payload.int_for_bit_range(self.start, self.end + 1), 4)
-        if result is not None and result != 181.0 and -180 <= result <= 180.0:
+        result = payload.scaled_int_for_bit_range(self.start, self.end + 1, 4)
+        if result is not None and result != 181.0 and -180.0 <= result <= 180.0:
             return result
 
     def _parse_lat(self, payload):
         if not payload.has_bits(self.start, self.end + 1):
             return None
-        result = self._scale_integer(payload.int_for_bit_range(self.start, self.end + 1), 4)
+        result = payload.scaled_int_for_bit_range(self.start, self.end + 1, 4)
         if result is not None and result != 91.0 and -90.0 <= result <= 90.0:
             return result
-
-    def _scale_integer(self, i, scale):
-        out = self._twos_comp(int(i), self.length)
-        result = round(out / 60 / (10 ** scale), 4)
-        return result
-
-    def _twos_comp(self, val, length):
-        if (val & (1 << (length - 1))) != 0:  # if sign bit is set e.g., 8bit: 128-255
-            val = val - (1 << length)  # compute negative value
-        return val
-
-    def _scaled_integer_from_bits(self, bits, scale):
-        out = self._twos_comp(int(bits), len(bits))
-        result = round(out / 60 / (10 ** scale), 4)
-        return result
 
     def _parse_text(self, payload):
         return payload.text_for_bit_range(self.start, self.end + 1)
