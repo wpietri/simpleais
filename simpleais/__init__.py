@@ -107,67 +107,6 @@ class Bits:
         return Bits(result_value, result_length)
 
 
-class Bitsx:
-    """
-    An immutable bunch of bits, backed by y a string. You would think that rewriting
-    this as ints would make it faster, but it makes it slower. I've tried it.
-    See http://stackoverflow.com/questions/20845686/python-bit-array-performant
-    for possible other options.
-    """
-
-    def __init__(self, *args):
-        if len(args) == 0:
-            self.contents = ""
-        elif len(args) == 1:
-            if isinstance(args[0], str):
-                self.contents = args[0]
-            elif isinstance(args[0], int):
-                self.contents = "{:b}".format(args[0])
-            elif isinstance(args[0], Bits):
-                self.contents = args[0].contents
-            else:
-                raise ValueError("don't know how to parse {}".format(args[0]))
-        elif len(args) == 2 and isinstance(args[0], int):
-            if args[1] == 0:
-                self.contents = ''
-            else:
-                format_string = "{:0" + str(args[1]) + "b}"
-                self.contents = format_string.format(args[0])
-        else:
-            raise ValueError("don't know how to parse {}, {}".format(args[0], args[1]))
-
-    def __int__(self):
-        return int(self.contents, 2)
-
-    def __getitem__(self, given):
-        return Bits(self.contents.__getitem__(given))
-
-    def __add__(self, other):
-        return Bits(self.contents + other.contents)
-
-    def __len__(self):
-        return self.contents.__len__()
-
-    def __eq__(self, other):
-        if isinstance(other, Bits):
-            return self.contents.__eq__(other.contents)
-        else:
-            return int(self) == int(other)
-
-    def __str__(self):
-        return self.contents
-
-    def __repr__(self):
-        return "Bits({})".format(str(self))
-
-    @classmethod
-    def join(cls, array, start=None, stop=None):
-        result = ''.join(b.contents for b in array)
-        if stop:
-            return Bits(result[start:stop])
-        else:
-            return Bits(result)
-
 
 class StreamParser:
     """
