@@ -181,8 +181,28 @@ def as_text(sources):
             location = sentence.location()
             if location:
                 result.append("{:9.4f} {:9.4f}".format(location[0], location[1]))
-            if sentence.type_id() == 5:
-                result.append("{}->{}".format(sentence['shipname'], sentence['destination']))
+                if sentence['speed'] and sentence['speed'] < 102.3:
+                    result.append("{}kn".format(sentence['speed']))
+                if sentence['course'] and sentence['course'] < 360:
+                    if sentence['heading'] and sentence['heading'] < 360:
+                        result.append("{}°/{}°".format(sentence['course'], sentence['heading']))
+                    else:
+                        result.append("{}°".format(sentence['course']))
+
+            # ship info
+            if sentence['shipname']:
+                result.append(sentence['shipname'])
+            if sentence['to_bow'] and sentence['to_bow'] > 0:
+                result.append("({}x{}x{}m)".format(
+                    sentence['to_bow'] + sentence['to_stern'],
+                    sentence['to_port'] + sentence['to_starboard'],
+                    sentence['draught']))
+            if sentence['destination']:
+                result.append("-> {}".format(sentence['destination']))
+                if sentence['minute'] and sentence['minute'] < 60:
+                    result.append("at {}/{} {}:{:02d}".format(
+                        sentence['month'], sentence['day'],
+                        sentence['hour'], sentence['minute']))
             elif sentence.type_id() in [12, 14]:
                 result.append("{}".format(sentence['text']))
             elif sentence.type_id() == 24 and sentence['partno'] == 0:
