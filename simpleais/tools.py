@@ -136,32 +136,6 @@ def read_mmsi_file(mmsi_file):
         return frozenset([l.strip() for l in f.readlines()])
 
 
-def location_match(locations, sentence):
-    """
-    Check to see if a packet's position is in any of the given locations.
-    Go to some trouble to make sure we don't do any more fetching from
-    the sentence than necessary, as that's relatively slow.
-    """
-    l = locations[0]
-    lon = sentence['lon']
-    lat = None
-    if lon and l[0] <= lon <= l[1]:
-        lat = sentence['lat']
-        if lat and l[2] <= lat <= l[3]:
-            return True
-
-    if lon and lat:
-        pos = 1
-        while pos < len(locations):
-            l = locations[pos]
-            if l[0] <= lon <= l[1]:
-                lat = sentence['lat']
-                if l[2] <= lat <= l[3]:
-                    return True
-            pos += 1
-    return False
-
-
 @click.command()
 @click.argument('sources', nargs=-1)
 def as_text(sources):
