@@ -107,7 +107,6 @@ class Bits:
         return Bits(result_value, result_length)
 
 
-
 class StreamParser:
     """
     Used to parse live streams of AIS messages.
@@ -355,6 +354,19 @@ class NmeaPayload:
         # most ints are in the first lump, so ignore other complexity for now
         return int(self._bit_range(start, stop))
 
+    def text_for_bit_range(self, start, stop):
+        bits = self._bit_range(start, stop)
+
+        def chunks(s, n):
+            for i in range(0, len(s), n):
+                yield s[i:i + n]
+
+        raw_ints = [int(nibble) for nibble in chunks(bits, 6)]
+        mapped_ints = [i if i > 31 else i + 64 for i in raw_ints]
+        text = ''.join([chr(i) for i in mapped_ints]).strip()
+        text = text.rstrip('@').strip()
+        return text
+
     def _bit_range(self, start, stop):
         # Can we pull from the first lump?
         if stop <= self.data[0].bit_length():
@@ -409,7 +421,9 @@ class BitFieldDecoder(FieldDecoder):
         self.bit_range = slice(start, end + 1)
         self.description = description
         self._nmea_decode = self._appropriate_nmea_decoder(data_type, name)
-        self._bit_decode = self._appropriate_bit_decoder(data_type, name)
+        self._bit_decode = None
+        if not self._nmea_decode:
+            self._bit_decode = self._appropriate_bit_decoder(data_type, name)
         self.short_bits_ok = data_type in ['s', 't', 'd']  # if we get partial text or data, that's better than nothing
 
     def __repr__(self, *args, **kwargs):
@@ -426,13 +440,11 @@ class BitFieldDecoder(FieldDecoder):
             return lambda b: None  # Type 17 is weird; ignore for now
         elif name == 'lat' and data_type == 'I1':
             return lambda b: None  # Type 17 is weird; ignore for now
-
-    def _appropriate_bit_decoder(self, data_type, name):
-        if name == 'mmsi':
-            return self._parse_mmsi
         elif data_type == 't' or data_type == 's':
             return self._parse_text
-        elif data_type == 'I3':
+
+    def _appropriate_bit_decoder(self, data_type, name):
+        if data_type == 'I3':
             return lambda b: self._scaled_integer_from_bits(b, 3)
         elif data_type == 'I1':
             return lambda b: self._scaled_integer_from_bits(b, 1)
@@ -499,16 +511,8 @@ class BitFieldDecoder(FieldDecoder):
         result = round(out / 60 / (10 ** scale), 4)
         return result
 
-    def _parse_text(self, bits):
-        def chunks(s, n):
-            for i in range(0, len(s), n):
-                yield s[i:i + n]
-
-        raw_ints = [int(nibble) for nibble in chunks(bits, 6)]
-        mapped_ints = [i if i > 31 else i + 64 for i in raw_ints]
-        text = ''.join([chr(i) for i in mapped_ints]).strip()
-        text = text.rstrip('@').strip()
-        return text
+    def _parse_text(self, payload):
+        return payload.text_for_bit_range(self.start, self.end + 1)
 
 
 class TimeFieldDecoder(FieldDecoder):
