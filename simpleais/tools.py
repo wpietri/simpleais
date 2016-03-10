@@ -46,21 +46,22 @@ def print_sentence_source(sentence, file=None):
             print(output, flush=True)
 
 
-def sentences_from_sources(sources):
+def sentences_from_sources(sources, log_errors=False):
     if len(sources) > 0:
         for source in sources:
-            for sentence in sentences_from_source(source):
+            for sentence in sentences_from_source(source, log_errors):
                 yield sentence
     else:
-        for sentence in sentences_from_source(sys.stdin):
+        for sentence in sentences_from_source(sys.stdin, log_errors):
             yield sentence
 
 
 @click.command()
 @click.argument('sources', nargs=-1)
-def cat(sources):
+@click.option('--verbose', is_flag=True)
+def cat(sources, verbose):
     """ Prints out all complete AIS transmissions.  """
-    for sentence in sentences_from_sources(sources):
+    for sentence in sentences_from_sources(sources, log_errors=verbose):
         with wild_disregard_for(BrokenPipeError):
             print_sentence_source(sentence)
 
@@ -112,8 +113,9 @@ class Taster(object):
 @click.option('--field', '-f', multiple=True)
 @click.option('--checksum', type=click.Choice(['valid', 'invalid']))
 @click.option('--invert-match', '-v', is_flag=True)
+@click.option('--verbose', is_flag=True)
 def grep(sources, mmsi=None, mmsi_file=None, sentence_type=None, lon=None, lat=None, field=None, checksum=None,
-         invert_match=False):
+         invert_match=False, verbose=False):
     """ Filters AIS transmissions.  """
     if not mmsi:
         mmsi = frozenset()
@@ -126,7 +128,7 @@ def grep(sources, mmsi=None, mmsi_file=None, sentence_type=None, lon=None, lat=N
         checksum_desire = checksum == "valid"
     taster = Taster(mmsi, sentence_type, lon, lat, field, checksum_desire, invert_match)
     with wild_disregard_for(BrokenPipeError):
-        for sentence in sentences_from_sources(sources):
+        for sentence in sentences_from_sources(sources, log_errors=verbose):
             if taster.likes(sentence):
                 print_sentence_source(sentence)
 
@@ -138,9 +140,10 @@ def read_mmsi_file(mmsi_file):
 
 @click.command()
 @click.argument('sources', nargs=-1)
-def as_text(sources):
+@click.option('--verbose', is_flag=True)
+def as_text(sources, verbose):
     """ Simple text display, one line per AIS sentence. """
-    for sentence in sentences_from_sources(sources):
+    for sentence in sentences_from_sources(sources, log_errors=verbose):
         with wild_disregard_for(BrokenPipeError):
             result = []
             if sentence.time:
@@ -191,14 +194,15 @@ def as_text(sources):
 @click.command()
 @click.argument('source', nargs=1)
 @click.argument('dest', nargs=1, required=False)
-def burst(source, dest):
+@click.option('--verbose', is_flag=True)
+def burst(source, dest, verbose):
     """ Takes large AIS files and splits them up by sender. """
     if not dest:
         dest = source
     writers = {}
     fname, ext = os.path.splitext(dest)
 
-    for sentence in sentences_from_source(source):
+    for sentence in sentences_from_source(source, log_errors=verbose):
         mmsi = sentence['mmsi']
         if not mmsi:
             mmsi = 'other'
@@ -494,7 +498,8 @@ class DensityMap:
 @click.option('--map', '-m', "show_map", is_flag=True)
 @click.option('--by-type', '-t', is_flag=True)
 @click.option('--point', '-p', type=(float, float), multiple=True)
-def info(sources, individual, by_type, show_map, point):
+@click.option('--verbose', is_flag=True)
+def info(sources, individual, by_type, show_map, point, verbose):
     """ Summarizes AIS transmissions. """
     sentences_info = SentencesInfo(by_type)
     sender_info = defaultdict(SenderInfo)
@@ -505,7 +510,7 @@ def info(sources, individual, by_type, show_map, point):
         for p in point:
             map_info.mark(p)
 
-    for sentence in sentences_from_sources(sources):
+    for sentence in sentences_from_sources(sources, log_errors=verbose):
         try:
             if not sentence.check():
                 sentences_info.count_bad_checksum()
@@ -548,10 +553,11 @@ def chunks(l, n):
 @click.command()
 @click.argument('sources', nargs=-1)
 @click.option('--bits', '-b', is_flag=True)
-def dump(sources, bits):
+@click.option('--verbose', is_flag=True)
+def dump(sources, bits, verbose):
     """ Gives a detailed dump of each AIS sentence. """
     sentence_count = 0
-    for sentence in sentences_from_sources(sources):
+    for sentence in sentences_from_sources(sources, log_errors=verbose):
         with wild_disregard_for(BrokenPipeError):
             if sentence_count != 0:
                 print()
@@ -590,9 +596,10 @@ def dump(sources, bits):
 @click.command()
 @click.argument('sources', nargs=-1)
 @click.option('--field', '-f')
-def stat(sources, field):
+@click.option('--verbose', is_flag=True)
+def stat(sources, field, verbose):
     counts = defaultdict(int)
-    for sentence in sentences_from_sources(sources):
+    for sentence in sentences_from_sources(sources, log_errors=verbose):
         val = sentence[field]
         if val:
             counts[val] += 1

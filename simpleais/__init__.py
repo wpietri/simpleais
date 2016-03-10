@@ -794,21 +794,21 @@ def lines_from_source(source):
         yield from _handle_file_source(source)
 
 
-def fragments_from_source(source):
+def fragments_from_source(source, log_errors=False):
     for line in lines_from_source(source):
         # noinspection PyBroadException
         try:
             m = aivdm_pattern.search(line)
             if m:
                 yield m.group(0)
-            else:
+            elif log_errors:
                 logging.getLogger().warn("skipped: \"{}\"".format(line.strip()))
         except Exception:
             logging.getLogger().error("unexpected failure for line {} in source {}".format(line, source), exc_info=True)
 
 
-def sentences_from_source(source):
-    parser = StreamParser(log_errors=True)
+def sentences_from_source(source, log_errors=False):
+    parser = StreamParser(log_errors=log_errors)
     for fragment in lines_from_source(source):
         # noinspection PyBroadException
         try:

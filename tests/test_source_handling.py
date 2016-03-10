@@ -27,7 +27,7 @@ class TestSourceHandling(TestCase):
             with tempfile.NamedTemporaryFile() as file:
                 self.write_sample_data(file)
 
-                fragments = list(fragments_from_source(file.name))
+                fragments = list(fragments_from_source(file.name, log_errors=True))
                 self.assertEqual(4, len(fragments))
             logs.check(('root', 'WARNING', 'skipped: "garbage data"'))
 
@@ -36,7 +36,7 @@ class TestSourceHandling(TestCase):
             with tempfile.NamedTemporaryFile() as file:
                 self.write_sample_data(file)
 
-                sentences = sentences_from_source(file.name)
+                sentences = sentences_from_source(file.name, log_errors=True)
                 self.assertEqual(8, sentences.__next__().type_id())
                 self.assertEqual(1, sentences.__next__().type_id())
                 self.assertRaises(StopIteration, sentences.__next__)
@@ -48,7 +48,7 @@ class TestSourceHandling(TestCase):
                 self.write_sample_data(file, compress=True)
                 file.close()
 
-                sentences = sentences_from_source(file.name)
+                sentences = sentences_from_source(file.name, log_errors=True)
                 self.assertEqual(8, sentences.__next__().type_id())
                 self.assertEqual(1, sentences.__next__().type_id())
                 self.assertRaises(StopIteration, sentences.__next__)
@@ -61,7 +61,7 @@ class TestSourceHandling(TestCase):
             with tempfile.NamedTemporaryFile() as file:
                 self.write_sample_data(file)
                 io = open(file.name, 'rt')
-                sentences = sentences_from_source(io)
+                sentences = sentences_from_source(io, log_errors=True)
                 self.assertEqual(8, sentences.__next__().type_id())
                 self.assertEqual(1, sentences.__next__().type_id())
                 self.assertRaises(StopIteration, sentences.__next__)
