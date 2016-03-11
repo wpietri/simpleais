@@ -593,18 +593,70 @@ def dump(sources, bits, verbose):
                     print("  {:>12}: {}".format(field.name(), value))
 
 
+def value_for(field, sentence):
+    if sentence.time and field in ('time-day', 'time-hour', 'time-minute'):
+        if field == 'time-day':
+            return strftime("%Y/%m/%d", localtime(sentence.time))
+        elif field == 'time-hour':
+            return strftime("%Y/%m/%d-%H:00", localtime(sentence.time))
+        elif field == 'time-minute':
+            return strftime("%Y/%m/%d-%H:%M", localtime(sentence.time))
+    else:
+        return sentence[field]
+
+
+def value_tuple_for(fields, sentence):
+    result = tuple([value_for(field, sentence) for field in fields])
+    if all(item is None for item in result):
+        return None
+    else:
+        return result
+
+
 @click.command()
 @click.argument('sources', nargs=-1)
-@click.option('--field', '-f')
+@click.option('--field', '-f', multiple=True)
+@click.option('--day', 'time', flag_value='time-day')
+@click.option('--hour', 'time', flag_value='time-hour')
+@click.option('--minute', 'time', flag_value='time-minute')
+@click.option('--count', 'output', flag_value='count', default=True)
+@click.option('--hist', 'output', flag_value='hist')
 @click.option('--verbose', is_flag=True)
-def stat(sources, field, verbose):
+def stat(sources, field, time, output, verbose):
+    if time:
+        fields = [time] + list(field)
+    else:
+        fields = list(field)
+
+    if len(fields) < 1:
+        raise click.UsageError("at least one field required; try --hour or -f type")
+
     counts = defaultdict(int)
     for sentence in sentences_from_sources(sources, log_errors=verbose):
-        val = sentence[field]
-        if val:
+        val = value_tuple_for(fields, sentence)
             counts[val] += 1
-    for key in sorted(counts, key=lambda k: counts[k], reverse=True):
-        print("{}\t{}".format(key, counts[key]))
+    if output == 'count':
+        for key in sorted(counts, key=lambda k: counts[k], reverse=True):
+            print("{}\t{}".format(tuple_display(key), counts[key]))
+    else:
+        largest = 0
+        smallest = sys.maxsize
+        for key in counts:
+            if counts[key] > largest:
+                largest = counts[key]
+            if counts[key] < smallest:
+                smallest = counts[key]
+        print("{} values for {}; counts from {} to {}".format(len(counts), tuple_display(fields), smallest, largest))
+        for key in sorted(counts):
+            print("{}\t{}\t{}".format(tuple_display(key), counts[key], "*" * int(1 + 40 * counts[key] // largest)))
+
+
+def tuple_display(t):
+    if len(t) == 1:
+        field_display = t[0]
+    else:
+        field_display = "+".join([str(i) for i in t])
+    return field_display
 
 
 # used for profiling; call with something like "grep ../tests/sample.ais -t 20"
