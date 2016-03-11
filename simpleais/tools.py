@@ -601,6 +601,11 @@ def value_for(field, sentence):
             return strftime("%Y/%m/%d-%H:00", localtime(sentence.time))
         elif field == 'time-minute':
             return strftime("%Y/%m/%d-%H:%M", localtime(sentence.time))
+    elif field == 'geo-degree':
+        lon = sentence['lon']
+        lat = sentence['lat']
+        if lon and lat:
+            return "{:+3.0f}x{:+2.0f}".format(lon, lat)
     else:
         return sentence[field]
 
@@ -613,28 +618,36 @@ def value_tuple_for(fields, sentence):
         return result
 
 
+def tuple_display(t):
+    if t is None:
+        return "None"
+    elif len(t) == 1:
+        field_display = t[0]
+    else:
+        field_display = "+".join([str(i) for i in t])
+    return field_display
+
+
 @click.command()
 @click.argument('sources', nargs=-1)
 @click.option('--field', '-f', multiple=True)
 @click.option('--day', 'time', flag_value='time-day')
 @click.option('--hour', 'time', flag_value='time-hour')
 @click.option('--minute', 'time', flag_value='time-minute')
+@click.option('--degree', 'geo', flag_value='geo-degree')
 @click.option('--count', 'output', flag_value='count', default=True)
 @click.option('--hist', 'output', flag_value='hist')
 @click.option('--verbose', is_flag=True)
-def stat(sources, field, time, output, verbose):
-    if time:
-        fields = [time] + list(field)
-    else:
-        fields = list(field)
-
+def stat(sources, field, time, geo, output, verbose):
+    fields = list(filter(None.__ne__, [time, geo] + list(field)))
     if len(fields) < 1:
         raise click.UsageError("at least one field required; try --hour or -f type")
 
     counts = defaultdict(int)
     for sentence in sentences_from_sources(sources, log_errors=verbose):
         val = value_tuple_for(fields, sentence)
-        counts[val] += 1
+        if val:
+            counts[val] += 1
     if output == 'count':
         for key in sorted(counts, key=lambda k: counts[k], reverse=True):
             print("{}\t{}".format(tuple_display(key), counts[key]))
@@ -649,14 +662,6 @@ def stat(sources, field, time, output, verbose):
         print("{} values for {}; counts from {} to {}".format(len(counts), tuple_display(fields), smallest, largest))
         for key in sorted(counts):
             print("{}\t{}\t{}".format(tuple_display(key), counts[key], "*" * int(1 + 40 * counts[key] // largest)))
-
-
-def tuple_display(t):
-    if len(t) == 1:
-        field_display = t[0]
-    else:
-        field_display = "+".join([str(i) for i in t])
-    return field_display
 
 
 # used for profiling; call with something like "grep ../tests/sample.ais -t 20"
