@@ -634,7 +634,7 @@ def stat(sources, field, time, output, verbose):
     counts = defaultdict(int)
     for sentence in sentences_from_sources(sources, log_errors=verbose):
         val = value_tuple_for(fields, sentence)
-            counts[val] += 1
+        counts[val] += 1
     if output == 'count':
         for key in sorted(counts, key=lambda k: counts[k], reverse=True):
             print("{}\t{}".format(tuple_display(key), counts[key]))
