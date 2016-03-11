@@ -178,7 +178,6 @@ class TestDensityMap(TestCase):
             '+----+',
         ], m.to_text())
 
-
     def test_mark(self):
         m = DensityMap(3, height_scale=1)
         m.add((-1, -1))
@@ -217,6 +216,7 @@ class TestDensityMap(TestCase):
             '|   9|',
             '+----+',
         ], m.to_text())
+
 
 class TestBucketer(TestCase):
     def test_basics(self):
@@ -327,12 +327,13 @@ from click.testing import CliRunner
 
 
 class CommandLineSmokeTest(TestCase):
-    commands = {cat, grep, as_text, burst, info, dump}
+    commands = {cat, grep, as_text, burst, info, dump, stat}
+    required_args = {stat: ['-f', 'type']}
 
     def test_handles_empty(self):
         for c in self.commands:
             runner = CliRunner()
-            result = runner.invoke(c, ['/dev/null'])
+            result = runner.invoke(c, self.args_for(c))
             self.assertEqual(0, result.exit_code, "for {}".format(c.name))
 
     def test_handles_one_line(self):
@@ -341,6 +342,12 @@ class CommandLineSmokeTest(TestCase):
             with runner.isolated_filesystem():
                 with open('example.ais', 'w') as f:
                     f.write("1452468552.938 !AIVDM,1,1,,B,14Wtnn002SGLde:BbrBmdTLF0Vql,0*6E")
-                result = runner.invoke(c, ['example.ais'])
+                result = runner.invoke(c, self.args_for(c, 'example.ais'))
                 self.assertEqual(0, result.exit_code, "for {}".format(c.name))
                 self.assertTrue(len(result.output) > 0, "for {}".format(c.name))
+
+    def args_for(self, c, file='/dev/null'):
+        if c in self.required_args:
+            return self.required_args[c] + [file]
+        else:
+            return [file]
