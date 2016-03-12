@@ -594,13 +594,13 @@ def dump(sources, bits, verbose):
 
 
 def value_for(field, sentence):
-    if sentence.time and field in ('time-day', 'time-hour', 'time-minute'):
-        if field == 'time-day':
+    if sentence.time and field in ('time-date', 'time-hour', 'time-minute'):
+        if field == 'time-date':
             return strftime("%Y/%m/%d", localtime(sentence.time))
         elif field == 'time-hour':
-            return strftime("%Y/%m/%d-%H:00", localtime(sentence.time))
+            return strftime("%H", localtime(sentence.time))
         elif field == 'time-minute':
-            return strftime("%Y/%m/%d-%H:%M", localtime(sentence.time))
+            return strftime("%M", localtime(sentence.time))
     elif field == 'geo-degree':
         lon = sentence['lon']
         lat = sentence['lat']
@@ -619,49 +619,47 @@ def value_tuple_for(fields, sentence):
 
 
 def tuple_display(t):
-    if t is None:
-        return "None"
-    elif len(t) == 1:
-        field_display = t[0]
+    if len(t) == 1:
+        return t[0]
     else:
-        field_display = "+".join([str(i) for i in t])
-    return field_display
+        return "+".join([str(i) for i in t])
 
 
 @click.command()
 @click.argument('sources', nargs=-1)
-@click.option('--field', '-f', multiple=True)
-@click.option('--day', 'time', flag_value='time-day')
-@click.option('--hour', 'time', flag_value='time-hour')
-@click.option('--minute', 'time', flag_value='time-minute')
-@click.option('--degree', 'geo', flag_value='geo-degree')
-@click.option('--count', 'output', flag_value='count', default=True)
-@click.option('--hist', 'output', flag_value='hist')
+@click.option('--field', '-f', 'fields', multiple=True)
+@click.option('--date', 'fields', flag_value='time-date', multiple=True)
+@click.option('--hour', 'fields', flag_value='time-hour', multiple=True)
+@click.option('--minute', 'fields', flag_value='time-minute', multiple=True)
+@click.option('--degree', 'fields', flag_value='geo-degree', multiple=True)
+@click.option('--count', '-c', 'output', flag_value='count', default=True)
+@click.option('--hist', '-h', 'output', flag_value='hist')
 @click.option('--verbose', is_flag=True)
-def stat(sources, field, time, geo, output, verbose):
-    fields = list(filter(None.__ne__, [time, geo] + list(field)))
+def stat(sources, fields, output, verbose):
     if len(fields) < 1:
         raise click.UsageError("at least one field required; try --hour or -f type")
-
     counts = defaultdict(int)
     for sentence in sentences_from_sources(sources, log_errors=verbose):
         val = value_tuple_for(fields, sentence)
         if val:
             counts[val] += 1
+
+    key_width = max([len(str(tuple_display(k))) for k in counts.keys()])
+    val_width = max([len(str(v)) for v in counts.values()])
     if output == 'count':
         for key in sorted(counts, key=lambda k: counts[k], reverse=True):
-            print("{}\t{}".format(tuple_display(key), counts[key]))
+            print("{key:{key_width}}  {value:{val_width}}".format(
+                key=tuple_display(key), value=counts[key],
+                key_width=key_width, val_width=val_width)
+            )
     else:
-        largest = 0
-        smallest = sys.maxsize
-        for key in counts:
-            if counts[key] > largest:
-                largest = counts[key]
-            if counts[key] < smallest:
-                smallest = counts[key]
-        print("{} values for {}; counts from {} to {}".format(len(counts), tuple_display(fields), smallest, largest))
+        largest = max(counts.values())
         for key in sorted(counts):
-            print("{}\t{}\t{}".format(tuple_display(key), counts[key], "*" * int(1 + 40 * counts[key] // largest)))
+            print("{key:{key_width}}  {value:{val_width}}  {hist}".format(
+                key=tuple_display(key), value=counts[key],
+                key_width=key_width, val_width=val_width,
+                hist="*" * int(1 + 40 * counts[key] // largest))
+            )
 
 
 # used for profiling; call with something like "grep ../tests/sample.ais -t 20"
