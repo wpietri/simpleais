@@ -69,10 +69,11 @@ def cat(sources, verbose):
 class Taster(object):
     pass
 
-    def __init__(self, mmsi=None, sentence_type=None, lon=None, lat=None, field=None, checksum=None,
+    def __init__(self, mmsi=None, sentence_type=None, vessel_class=None, lon=None, lat=None, field=None, checksum=None,
                  invert_match=False):
         self.mmsi = mmsi
         self.sentence_type = sentence_type
+        self.vessel_class = vessel_class
         self.lon = lon
         self.lat = lat
         self.field = field
@@ -85,6 +86,11 @@ class Taster(object):
             factors.append(sentence['mmsi'] in self.mmsi)
         if self.sentence_type:
             factors.append(sentence.type_id() in self.sentence_type)
+        if self.vessel_class:
+            if self.vessel_class == 'a':
+                factors.append(sentence.type_id() in [1, 2, 3, 5])
+            elif self.vessel_class == 'b':
+                factors.append(sentence.type_id() in [18, 19, 24])
         if self.lon or self.lat:
             loc = sentence.location()
             if self.lon:
@@ -108,13 +114,15 @@ class Taster(object):
 @click.option('--mmsi', '-m', multiple=True)
 @click.option('--mmsi-file')
 @click.option('--type', '-t', 'sentence_type', type=int, multiple=True)
+@click.option('--class', 'vessel_class', type=click.Choice(['a', 'b']))
 @click.option('--longitude', '--long', '--lon', nargs=2, type=float)
 @click.option('--latitude', '--lat', nargs=2, type=float)
 @click.option('--field', '-f', multiple=True)
 @click.option('--checksum', type=click.Choice(['valid', 'invalid']))
 @click.option('--invert-match', '-v', is_flag=True)
 @click.option('--verbose', is_flag=True)
-def grep(sources, mmsi=None, mmsi_file=None, sentence_type=None, lon=None, lat=None, field=None, checksum=None,
+def grep(sources, mmsi=None, mmsi_file=None, sentence_type=None, vessel_class=None, lon=None, lat=None, field=None,
+         checksum=None,
          invert_match=False, verbose=False):
     """ Filters AIS transmissions.  """
     if not mmsi:
@@ -126,7 +134,7 @@ def grep(sources, mmsi=None, mmsi_file=None, sentence_type=None, lon=None, lat=N
         checksum_desire = None
     else:
         checksum_desire = checksum == "valid"
-    taster = Taster(mmsi, sentence_type, lon, lat, field, checksum_desire, invert_match)
+    taster = Taster(mmsi, sentence_type, vessel_class, lon, lat, field, checksum_desire, invert_match)
     with wild_disregard_for(BrokenPipeError):
         for sentence in sentences_from_sources(sources, log_errors=verbose):
             if taster.likes(sentence):
@@ -170,10 +178,7 @@ def as_text(sources, verbose):
             if sentence['shipname']:
                 result.append(sentence['shipname'])
             if sentence['to_bow'] and sentence['to_bow'] > 0:
-                result.append("({}x{}x{}m)".format(
-                    sentence['to_bow'] + sentence['to_stern'],
-                    sentence['to_port'] + sentence['to_starboard'],
-                    sentence['draught']))
+                result.append("({})".format(dimensions_as_text(sentence)))
             if sentence['destination']:
                 result.append("-> {}".format(sentence['destination']))
                 if sentence['minute'] and sentence['minute'] < 60:
@@ -189,6 +194,14 @@ def as_text(sources, verbose):
                 result.append(time_to_text(sentence['time']))
 
             print(" ".join(result))
+
+
+def dimensions_as_text(type_5_sentence):
+    if type_5_sentence['to_bow'] and type_5_sentence['to_bow'] > 0:
+        return "{}x{}x{}m".format(
+            type_5_sentence['to_bow'] + type_5_sentence['to_stern'],
+            type_5_sentence['to_port'] + type_5_sentence['to_starboard'],
+            type_5_sentence['draught'])
 
 
 @click.command()
@@ -214,9 +227,9 @@ def burst(source, dest, verbose):
         writer.close()
 
 
-class Fields:
+class FieldsHistory:
     def __init__(self):
-        self.values = {}
+        self.values = defaultdict(list)
 
     def __getitem__(self, key):
         return self.values[key]
@@ -224,7 +237,8 @@ class Fields:
     def __setitem__(self, key, value):
         value = value.strip()
         if key and value and len(value) > 0:
-            self.values[key] = value
+            if value not in (self.values[key]):
+                self.values[key].append(value)
 
     def __iter__(self):
         return self.values.__iter__()
@@ -235,7 +249,7 @@ class SenderInfo:
         self.mmsi = None
         self.sentence_count = 0
         self.type_counts = defaultdict(int)
-        self.fields = Fields()
+        self.fields = FieldsHistory()
 
     def add(self, sentence):
         if not self.mmsi:
@@ -245,6 +259,7 @@ class SenderInfo:
         if sentence.type_id() == 5:
             self.fields['shipname'] = sentence['shipname']
             self.fields['destination'] = sentence['destination']
+            self.fields['dimensions'] = dimensions_as_text(sentence)
 
     def report(self, file=sys.stdout):
         print("{}:".format(self.mmsi), file=file)
@@ -252,7 +267,7 @@ class SenderInfo:
         type_text = ["{}: {}".format(t, self.type_counts[t]) for t in (sorted(self.type_counts))]
         print("        types: {}".format(", ".join(type_text)), file=file)
         for field in sorted(self.fields):
-            print("  {:>11s}: {}".format(field, self.fields[field]), file=file)
+            print("  {:>11s}: {}".format(field, ", ".join(self.fields[field])), file=file)
 
 
 class MaxMin:
@@ -572,7 +587,7 @@ def dump(sources, bits, verbose):
                 bit_lumps = list(chunks(str(sentence.message_bits()), 6))
                 groups = chunks(bit_lumps, 8)
                 pos = 0
-                print("         check: {}".format(", ".join([str(c) for c in sentence.checksum_valid])))
+                print("         check: {}".format(", ".join([str(c) for c in sentence.fragment_checksum_validity()])))
                 print("          bits: {:3d} {}".format(pos, " ".join(groups.__next__())))
                 for group in groups:
                     pos += 48

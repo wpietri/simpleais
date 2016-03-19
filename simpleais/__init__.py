@@ -704,8 +704,11 @@ class Sentence:
         return self.type_num
 
     def check(self):
-        checks = [nmea_checksum(t) == int(c, 16) for t, c in (zip(self.text, self.checksums))]
+        checks = self.fragment_checksum_validity()
         return reduce(lambda a, b: a and b, checks)
+
+    def fragment_checksum_validity(self):
+        return [nmea_checksum(t) == int(c, 16) for t, c in (zip(self.text, self.checksums))]
 
     def location(self):
         lon = self['lon']
