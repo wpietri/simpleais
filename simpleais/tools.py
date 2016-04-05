@@ -651,7 +651,7 @@ def tuple_display(t):
 @click.option('--hist', '-h', 'output', flag_value='hist')
 @click.option('--verbose', is_flag=True)
 def stat(sources, fields, output, verbose):
-    if len(fields) < 1:
+    if not fields or len(fields) < 1:
         raise click.UsageError("at least one field required; try --hour or -f type")
     counts = defaultdict(int)
     for sentence in sentences_from_sources(sources, log_errors=verbose):
@@ -659,8 +659,8 @@ def stat(sources, fields, output, verbose):
         if val:
             counts[val] += 1
 
-    key_width = max([len(str(tuple_display(k))) for k in counts.keys()])
-    val_width = max([len(str(v)) for v in counts.values()])
+    key_width = max([len(str(tuple_display(k))) for k in counts.keys()], default=0)
+    val_width = max([len(str(v)) for v in counts.values()], default=0)
     if output == 'count':
         for key in sorted(counts, key=lambda k: counts[k], reverse=True):
             print("{key:{key_width}}  {value:{val_width}}".format(

@@ -297,6 +297,12 @@ class TestTaster(TestCase):
         self.assertTrue(taster.likes(self.type_5))
         self.assertTrue(taster.likes(self.type_17))
 
+    def test_field_filtering(self):
+        taster = Taster(field=['shiptype'])
+        self.assertFalse(taster.likes(self.type_1_la))
+        self.assertTrue(taster.likes(self.type_5))
+        self.assertFalse(taster.likes(self.type_17))
+
     def test_packets_without_locations_are_rejected_when_filtering_for_location(self):
         taster = Taster(lat=(0, 90))
         self.assertFalse(taster.likes(self.type_5))
