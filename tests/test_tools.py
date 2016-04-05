@@ -303,6 +303,13 @@ class TestTaster(TestCase):
         self.assertTrue(taster.likes(self.type_5))
         self.assertFalse(taster.likes(self.type_17))
 
+    def test_value_filtering(self):
+        taster = Taster(value=[('mmsi', '366985310')])
+        self.assertTrue(taster.likes(self.type_1_sf))
+        self.assertFalse(taster.likes(self.type_1_la))
+        self.assertFalse(taster.likes(self.type_5))
+        self.assertFalse(taster.likes(self.type_17))
+
     def test_packets_without_locations_are_rejected_when_filtering_for_location(self):
         taster = Taster(lat=(0, 90))
         self.assertFalse(taster.likes(self.type_5))

@@ -5,6 +5,7 @@ import re
 import sys
 from collections import defaultdict
 from contextlib import contextmanager
+from copy import copy
 from math import radians, sin, atan2, sqrt, cos
 from time import localtime
 from time import strftime
@@ -69,19 +70,28 @@ def cat(sources, verbose):
 class Taster(object):
     pass
 
-    def __init__(self, mmsi=None, sentence_type=None, vessel_class=None, lon=None, lat=None, field=None, checksum=None,
-                 invert_match=False):
+    def __init__(self, mmsi=None, sentence_type=None, vessel_class=None, lon=None, lat=None, field=None, value=None,
+                 mode='and', checksum=None, invert_match=False):
         self.mmsi = mmsi
         self.sentence_type = sentence_type
         self.vessel_class = vessel_class
         self.lon = lon
         self.lat = lat
         self.field = field
+        self.value = value
+        if mode == 'and' or mode is None:
+            self.default_result = [True]
+            self.reducer = lambda x, y: x and y
+        elif mode == 'or':
+            self.default_result = [False]
+            self.reducer = lambda x, y: x or y
+        else:
+            raise ValueError("unknown mode {}".format(mode))
         self.checksum = checksum
         self.invert_match = invert_match
 
     def likes(self, sentence):
-        factors = [True]
+        factors = copy(self.default_result)
         if self.mmsi:
             factors.append(sentence['mmsi'] in self.mmsi)
         if self.sentence_type:
@@ -100,9 +110,12 @@ class Taster(object):
         if self.field:
             for f in self.field:
                 factors.append(sentence[f] is not None)
+        if self.value:
+            for f, v in self.value:
+                factors.append(sentence[f] == v or str(sentence[f]) == str(v))
         if self.checksum is not None:
             factors.append(sentence.check() == self.checksum)
-        result = functools.reduce(lambda x, y: x and y, factors)
+        result = functools.reduce(self.reducer, factors)
         if self.invert_match:
             return not result
         else:
@@ -118,12 +131,14 @@ class Taster(object):
 @click.option('--longitude', '--long', '--lon', nargs=2, type=float)
 @click.option('--latitude', '--lat', nargs=2, type=float)
 @click.option('--field', '-f', multiple=True)
+@click.option('--value', type=(str, str), multiple=True)
 @click.option('--checksum', type=click.Choice(['valid', 'invalid']))
+@click.option('--mode', type=click.Choice(['and', 'or']))
 @click.option('--invert-match', '-v', is_flag=True)
 @click.option('--verbose', is_flag=True)
-def grep(sources, mmsi=None, mmsi_file=None, sentence_type=None, vessel_class=None, lon=None, lat=None, field=None,
-         checksum=None,
-         invert_match=False, verbose=False):
+def grep(sources, mmsi=None, mmsi_file=None, sentence_type=None, vessel_class=None, lon=None, lat=None,
+         value=None, field=None, checksum=None,
+         mode='and', invert_match=False, verbose=False):
     """ Filters AIS transmissions.  """
     if not mmsi:
         mmsi = frozenset()
@@ -134,7 +149,7 @@ def grep(sources, mmsi=None, mmsi_file=None, sentence_type=None, vessel_class=No
         checksum_desire = None
     else:
         checksum_desire = checksum == "valid"
-    taster = Taster(mmsi, sentence_type, vessel_class, lon, lat, field, checksum_desire, invert_match)
+    taster = Taster(mmsi, sentence_type, vessel_class, lon, lat, field, value, mode, checksum_desire, invert_match)
     with wild_disregard_for(BrokenPipeError):
         for sentence in sentences_from_sources(sources, log_errors=verbose):
             if taster.likes(sentence):
