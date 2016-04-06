@@ -650,7 +650,7 @@ def value_tuple_for(fields, sentence):
 
 def tuple_display(t):
     if len(t) == 1:
-        return t[0]
+        return str(t[0])
     else:
         return "+".join([str(i) for i in t])
 

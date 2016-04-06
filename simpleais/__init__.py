@@ -461,7 +461,17 @@ class BitFieldDecoder(FieldDecoder):
         elif data_type == 'd':
             return lambda p: p.bits[self.start:self.end + 1]
         elif data_type == 'e':
-            return lambda p: "enum-{}".format(self.int(p))  # TODO: find and include enumerated types
+            def lookup(p):
+                i = self.int(p)
+                if i in ENUM_LOOKUPS[name]:
+                    return ENUM_LOOKUPS[name][i]
+                else:
+                    return "enum-unknown-{}".format(i)
+
+            if name == 'shiptype':
+                return lookup
+            else:
+                return lambda p: "enum-{}".format(self.int(p))  # TODO: find and include enumerated types
         elif data_type == 'b':
             return lambda p: self.int(p) == 1
         elif data_type == 'x':
@@ -574,18 +584,47 @@ class MessageDecoder:
             return self.field_decoders_by_id[key]
 
 
-def _load_decoders(source_file):
-    message_type_json = json.loads(open(os.path.join(os.path.dirname(__file__), source_file)).read())['messages']
-    result = {}
-    for message_type_id in range(1, 28):
-        result[message_type_id] = MessageDecoder(message_type_json[str(message_type_id)])
+class AisEnum:
+    def __init__(self, key, value):
+        self.key = key
+        self.value = value
 
-    # add derived fields
-    result[4].add_field_decoder('time', TimeFieldDecoder())
+    def __int__(self):
+        return self.key
+
+    def __str__(self):
+        return self.value
+
+    def __repr__(self):
+        return 'AisEnum({}, {})'.format(self.key, self.value)
+
+
+def as_enum(key, value):
+    return AisEnum(key, value)
+
+
+def as_enums(json_dict):
+    result = {}
+    for k in json_dict:
+        result[int(k)] = as_enum(int(k), json_dict[k])
     return result
 
 
-MESSAGE_DECODERS = _load_decoders('aivdm.json')
+def _load_decoders(source_file):
+    loaded_json = json.loads(open(os.path.join(os.path.dirname(__file__), source_file)).read())
+    message_type_json = loaded_json['messages']
+    message_result = {}
+    for message_type_id in range(1, 28):
+        message_result[message_type_id] = MessageDecoder(message_type_json[str(message_type_id)])
+
+    # add derived fields
+    message_result[4].add_field_decoder('time', TimeFieldDecoder())
+
+    enum_result = {'shiptype': as_enums(loaded_json['lookups']['ship_type'])}
+    return message_result, enum_result
+
+
+MESSAGE_DECODERS, ENUM_LOOKUPS = _load_decoders('aivdm.json')
 
 BACKUP_DECODER = MessageDecoder({
     "name": "Unknown message",

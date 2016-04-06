@@ -49,6 +49,15 @@ class TestFieldLookup(TestCase):
         self.assertEqual(slice(148, 149), d.bit_range('raim'))
         self.assertEqual(slice(149, 168), d.bit_range('radio'))
 
+    def test_raw_enums(self):
+        l = ENUM_LOOKUPS['shiptype']
+        self.assertEqual("Fishing", str(l[30]))
+        self.assertEqual(30, int(l[30]))
+        self.assertEqual("Other Type, no additional information", str(l[99]))
+        self.assertEqual(99, int(l[99]))
+        self.assertTrue(99 in l)
+        self.assertFalse(100 in l)
+
     def test_decoder_decodes(self):
         d = MESSAGE_DECODERS[1]
         m = simpleais.parse('!ABVDM,1,1,,A,15NaEPPP01oR`R6CC?<j@gvr0<1C,0*1F')
@@ -88,6 +97,21 @@ class TestFieldLookup(TestCase):
         self.assertTrue(m['type'])
         self.assertFalse(m['unknown'])
 
+    # this test is a sign of a terrible design problem. TODO: maybe make enum collections responsible for defaulting?
+    def test_enum_field(self):
+        class FakePayload:
+            def __init__(self, val):
+                self.val = val
+
+            def int_for_bit_range(self, i1, i2):
+                return self.val
+
+        enum_decoder = MESSAGE_DECODERS[5].field('shiptype')._appropriate_nmea_decoder('e', 'shiptype')
+        l = ENUM_LOOKUPS['shiptype']
+        self.assertEqual("Fishing", str(enum_decoder(FakePayload(30))))
+        self.assertEqual("enum-unknown-101", str(enum_decoder(FakePayload(101))))
+
+
     def test_type_17_location(self):
         # Type 17 locations are weird. I don't have enough data to reliably check,
         # and it's not clear that it means the same thing as other lon/lat fields.
@@ -96,6 +120,20 @@ class TestFieldLookup(TestCase):
                    '!AIVDM,2,2,2,B,wibCPG`kAfs:E0Dhp,0*73'])[0]
         self.assertIsNone(m['lat'])
         self.assertIsNone(m['lon'])
+
+    def test_type_5(self):
+        m = parse(['!AIVDM,2,1,8,A,55Mw0BP00001L=WKC?98uT4j1=@580000000000t1@D5540Ht6?UDp4iSp=<,0*74',
+                   '!AIVDM,2,2,8,A,@0000000000,2*5C'])[0]
+        self.assertEqual("366985290", m['mmsi'])
+        self.assertEqual("WCY6432", m['callsign'])
+        self.assertEqual("ROYAL STAR", m['shipname'])
+        self.assertEqual(">US SFO 41", m['destination'])
+        self.assertEqual(10, m['to_bow'])
+        self.assertEqual(20, m['to_stern'])
+        self.assertEqual(5, m['to_port'])
+        self.assertEqual(5, m['to_starboard'])
+        self.assertEqual("Passenger, all ships of this type", str(m['shiptype']))
+        self.assertEqual(60, int(m['shiptype']))
 
     def test_type_4(self):
         # Base stations offer a time and position reference; the time may be different
