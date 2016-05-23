@@ -463,10 +463,9 @@ class BitFieldDecoder(FieldDecoder):
         elif data_type == 'e':
             def lookup(p):
                 i = self.int(p)
-                if i in ENUM_LOOKUPS[name]:
-                    return ENUM_LOOKUPS[name][i]
-                else:
-                    return "enum-unknown-{}".format(i)
+                if i not in ENUM_LOOKUPS[name]:
+                    ENUM_LOOKUPS[name][i] = AisEnum(i, "enum-unknown-{}".format(i))
+                return ENUM_LOOKUPS[name][i]
 
             if name == 'shiptype':
                 return lookup

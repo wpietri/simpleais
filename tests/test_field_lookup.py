@@ -108,8 +108,14 @@ class TestFieldLookup(TestCase):
 
         enum_decoder = MESSAGE_DECODERS[5].field('shiptype')._appropriate_nmea_decoder('e', 'shiptype')
         l = ENUM_LOOKUPS['shiptype']
-        self.assertEqual("Fishing", str(enum_decoder(FakePayload(30))))
-        self.assertEqual("enum-unknown-101", str(enum_decoder(FakePayload(101))))
+        decoded_30 = enum_decoder(FakePayload(30))
+        self.assertEqual(30, decoded_30.key)
+        self.assertEqual("Fishing", decoded_30.value)
+        self.assertEqual("Fishing", str(decoded_30))
+        decoded_101 = enum_decoder(FakePayload(101))
+        self.assertEqual(101, decoded_101.key)
+        self.assertEqual("enum-unknown-101", decoded_101.value)
+        self.assertEqual("enum-unknown-101", str(decoded_101))
 
 
     def test_type_17_location(self):
