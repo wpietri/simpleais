@@ -12,6 +12,7 @@ from time import strftime
 
 import click
 import numpy
+from dateutil.parser import parse as dateutil_parse
 
 from simpleais import sentences_from_source
 
@@ -71,7 +72,7 @@ class Taster(object):
     pass
 
     def __init__(self, mmsi=None, sentence_type=None, vessel_class=None, lon=None, lat=None, field=None, value=None,
-                 mode='and', checksum=None, invert_match=False):
+                 before=None, after=None, mode='and', checksum=None, invert_match=False):
         self.mmsi = mmsi
         self.sentence_type = sentence_type
         self.vessel_class = vessel_class
@@ -79,6 +80,8 @@ class Taster(object):
         self.lat = lat
         self.field = field
         self.value = value
+        self.before = before
+        self.after = after
         if mode == 'and' or mode is None:
             self.default_result = [True]
             self.reducer = lambda x, y: x and y
@@ -113,6 +116,10 @@ class Taster(object):
         if self.value:
             for f, v in self.value:
                 factors.append(sentence[f] == v or str(sentence[f]) == str(v))
+        if self.before:
+            factors.append(sentence.time <= self.before)
+        if self.after:
+            factors.append(self.after <= sentence.time)
         if self.checksum is not None:
             factors.append(sentence.check() == self.checksum)
         result = functools.reduce(self.reducer, factors)
@@ -120,6 +127,13 @@ class Taster(object):
             return not result
         else:
             return result
+
+
+def parse_date(string):
+    if string:
+        return int(dateutil_parse(string).strftime("%s"))
+    else:
+        return None
 
 
 @click.command()
@@ -132,12 +146,14 @@ class Taster(object):
 @click.option('--latitude', '--lat', nargs=2, type=float)
 @click.option('--field', '-f', multiple=True)
 @click.option('--value', type=(str, str), multiple=True)
+@click.option('--before')
+@click.option('--after')
 @click.option('--checksum', type=click.Choice(['valid', 'invalid']))
 @click.option('--mode', type=click.Choice(['and', 'or']))
 @click.option('--invert-match', '-v', is_flag=True)
 @click.option('--verbose', is_flag=True)
 def grep(sources, mmsi=None, mmsi_file=None, sentence_type=None, vessel_class=None, lon=None, lat=None,
-         value=None, field=None, checksum=None,
+         value=None, before=None, after=None, field=None, checksum=None,
          mode='and', invert_match=False, verbose=False):
     """ Filters AIS transmissions.  """
     if not mmsi:
@@ -149,7 +165,8 @@ def grep(sources, mmsi=None, mmsi_file=None, sentence_type=None, vessel_class=No
         checksum_desire = None
     else:
         checksum_desire = checksum == "valid"
-    taster = Taster(mmsi, sentence_type, vessel_class, lon, lat, field, value, mode, checksum_desire, invert_match)
+    taster = Taster(mmsi, sentence_type, vessel_class, lon, lat, field, value, parse_date(before), parse_date(after),
+                    mode, checksum_desire, invert_match)
     with wild_disregard_for(BrokenPipeError):
         for sentence in sentences_from_sources(sources, log_errors=verbose):
             if taster.likes(sentence):

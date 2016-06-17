@@ -330,6 +330,18 @@ class TestTaster(TestCase):
         self.assertFalse(taster.likes(good))
         self.assertTrue(taster.likes(bad))
 
+    def test_time_filter(self):
+        early, late = parse(["1456572038.584 !AIVDM,1,1,,A,35DQ`v100211@E:GFlh=6To<P000pJw>`<,0*59",
+                             "1463812839.417 !AIVDM,1,1,,A,15DQ`v001P005W4EqMD`DVW>0>`<,0*62"])
+
+        taster = Taster(before=1460000000)
+        self.assertTrue(taster.likes(early))
+        self.assertFalse(taster.likes(late))
+
+        taster = Taster(after=1460000000)
+        self.assertFalse(taster.likes(early))
+        self.assertTrue(taster.likes(late))
+
     def test_invert_match(self):
         taster = Taster(lat=(32, 35), invert_match=True)  # LA
         self.assertFalse(taster.likes(self.type_1_la))
