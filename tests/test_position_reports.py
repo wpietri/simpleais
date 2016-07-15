@@ -41,3 +41,13 @@ class TestPositionReports(TestCase):
         self.assertEqual('338125063', m['mmsi'])
         self.assertIsNone(m['lon'])
         self.assertIsNone(m['lat'])
+
+    def test_has_speed(self):
+        m = simpleais.parse('!AIVDM,1,1,,B,19NSH1P02QG?:MjE`?qBFApb0>`<,0*41')
+        self.assertTrue('speed' in m)
+        self.assertEqual(16.1, m['speed'])
+
+    def test_has_zero_speed(self):
+        m = simpleais.parse('!AIVDM,1,1,,A,39NSH1U000GND`LCRQc;WpM`P>`<,0*6C')
+        self.assertTrue('speed' in m)
+        self.assertEqual(0, m['speed'])
