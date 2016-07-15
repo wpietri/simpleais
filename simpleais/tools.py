@@ -185,47 +185,49 @@ def as_text(sources, verbose):
     """ Simple text display, one line per AIS sentence. """
     for sentence in sentences_from_sources(sources, log_errors=verbose):
         with wild_disregard_for(BrokenPipeError):
-            result = []
-            if sentence.time:
-                t = sentence.time
-                result.append(time_to_text(t))
-            result.append("{:2}".format(sentence.type_id()))
-            result.append("{:9}".format(str(sentence['mmsi'])))
-            if sentence['dest_mmsi']:
-                result.append("-> {:9}".format(str(sentence['dest_mmsi'])))
-            if sentence.type_id() == 21:
-                result.append("{}".format(sentence['name']))
-            location = sentence.location()
-            if location:
-                result.append("{:9.4f} {:9.4f}".format(location[0], location[1]))
-                if sentence['speed'] and sentence['speed'] < 102.3:
-                    result.append("{}kn".format(sentence['speed']))
-                if sentence['course'] and sentence['course'] < 360:
-                    if sentence['heading'] and sentence['heading'] < 360:
-                        result.append("{}°/{}°".format(sentence['course'], sentence['heading']))
-                    else:
-                        result.append("{}°".format(sentence['course']))
+            print(text_for(sentence))
 
-            # ship info
-            if sentence['shipname']:
-                result.append(sentence['shipname'])
-            if sentence['to_bow'] and sentence['to_bow'] > 0:
-                result.append("({})".format(dimensions_as_text(sentence)))
-            if sentence['destination']:
-                result.append("-> {}".format(sentence['destination']))
-                if sentence['minute'] and sentence['minute'] < 60:
-                    result.append("at {}/{} {}:{:02d}".format(
-                        sentence['month'], sentence['day'],
-                        sentence['hour'], sentence['minute']))
-            elif sentence.type_id() in [12, 14]:
-                result.append("{}".format(sentence['text']))
-            elif sentence.type_id() == 24 and sentence['partno'] == 0:
-                result.append("{}".format(sentence['shipname']))
 
-            if sentence['time']:
-                result.append(time_to_text(sentence['time']))
+def text_for(sentence):
+    result = []
+    if sentence.time:
+        t = sentence.time
+        result.append(time_to_text(t))
+    result.append("{:2}".format(sentence.type_id()))
+    result.append("{:9}".format(str(sentence['mmsi'])))
+    if sentence['dest_mmsi']:
+        result.append("-> {:9}".format(str(sentence['dest_mmsi'])))
+    if sentence.type_id() == 21:
+        result.append("{}".format(sentence['name']))
+    location = sentence.location()
+    if location:
+        result.append("{:9.4f} {:9.4f}".format(location[0], location[1]))
+        if sentence['speed'] and sentence['speed'] < 102.3:
+            result.append("{}kn".format(sentence['speed']))
+        if sentence['course'] and sentence['course'] < 360:
+            if sentence['heading'] and sentence['heading'] < 360:
+                result.append("{}°/{}°".format(sentence['course'], sentence['heading']))
+            else:
+                result.append("{}°".format(sentence['course']))
 
-            print(" ".join(result))
+    # ship info
+    if sentence['shipname']:
+        result.append(sentence['shipname'])
+    if sentence['to_bow'] and sentence['to_bow'] > 0:
+        result.append("({})".format(dimensions_as_text(sentence)))
+    if sentence['destination']:
+        result.append("-> {}".format(sentence['destination']))
+        if sentence['minute'] and sentence['minute'] < 60:
+            result.append("at {}/{} {}:{:02d}".format(
+                sentence['month'], sentence['day'],
+                sentence['hour'], sentence['minute']))
+    elif sentence.type_id() in [12, 14]:
+        result.append("{}".format(sentence['text']))
+    elif sentence.type_id() == 24 and sentence['partno'] == 0:
+        result.append("{}".format(sentence['shipname']))
+    if sentence['time']:
+        result.append(time_to_text(sentence['time']))
+    return " ".join(result)
 
 
 def dimensions_as_text(type_5_sentence):
