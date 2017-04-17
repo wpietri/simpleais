@@ -635,10 +635,7 @@ def dump(sources, bits, verbose):
                 value = '-'
                 if field.valid():
                     value = field.value()
-                    if field.value() == 1456559999:
-                        print(field)
                     if field.name() == 'time':
-                        print("foo")
                         value = time_to_text(value)
                 if bits:
                     print("  {:>12}: {} ({})".format(field.name(), value, field.bits()))
