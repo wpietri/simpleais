@@ -181,18 +181,22 @@ def read_mmsi_file(mmsi_file):
 @click.command()
 @click.argument('sources', nargs=-1)
 @click.option('--verbose', is_flag=True)
-def as_text(sources, verbose):
+@click.option('--raw', is_flag=True)
+def as_text(sources, verbose, raw):
     """ Simple text display, one line per AIS sentence. """
     for sentence in sentences_from_sources(sources, log_errors=verbose):
         with wild_disregard_for(BrokenPipeError):
-            print(text_for(sentence))
+            print(text_for(sentence, raw))
 
 
-def text_for(sentence):
+def text_for(sentence, raw=False):
     result = []
     if sentence.time:
         t = sentence.time
-        result.append(time_to_text(t))
+        if raw:
+            result.append("{:.3f}".format(t))
+        else:
+            result.append(time_to_text(t))
     result.append("{:2}".format(sentence.type_id()))
     result.append("{:9}".format(str(sentence['mmsi'])))
     if sentence['dest_mmsi']:
