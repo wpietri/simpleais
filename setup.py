@@ -8,7 +8,7 @@ setup(name='simpleais',
       author_email='william-simpleais-0_6@scissor.com',
       license='Apache 2.0',
       packages=find_packages(),
-      install_requires=['bitstring', 'testfixtures', 'Click', 'numpy'],
+      install_requires=['bitstring', 'testfixtures', 'Click', 'numpy', 'python-dateutil'],
       extras_require={
           'dev': ['beautifulsoup4'],  # if you'll be developing, you may need this
       },
