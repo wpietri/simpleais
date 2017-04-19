@@ -784,6 +784,30 @@ class Sentence:
     def __str__(self):
         return "Sentence(type {}, from {}, at {})".format(self.type_num, self['mmsi'], self.time)
 
+    def as_dict(self):
+        result = {}
+        if self.time:
+            result['time'] = self.time
+        result['text'] = self.text
+        for field in self.fields():
+            result[field.name()] = field.value()
+        return result
+
+    def __iter__(self):
+        return iter(self.as_dict())
+
+
+class SentenceIterator:
+    def __init__(self, sentence):
+        self.sentence = sentence
+        self.fields = sentence.fields().__iter__()
+
+    def __iter__(self):
+        return self
+
+    def __next__(self):
+        field = self.fields.__next__()
+        return field.name(), field.value()
 
 class FragmentPool:
     """

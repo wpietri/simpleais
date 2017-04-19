@@ -117,7 +117,6 @@ class TestFieldLookup(TestCase):
         self.assertEqual("enum-unknown-101", decoded_101.value)
         self.assertEqual("enum-unknown-101", str(decoded_101))
 
-
     def test_type_17_location(self):
         # Type 17 locations are weird. I don't have enough data to reliably check,
         # and it's not clear that it means the same thing as other lon/lat fields.
@@ -172,3 +171,38 @@ class TestNettlesomePackets(TestCase):
         self.assertTrue(m.field('mmsiseq3').valid())
         self.assertFalse(m.field('mmsi4').valid())
         self.assertFalse(m.field('mmsiseq4').valid())
+
+
+class TestRenderAsDict(TestCase):
+    def setUp(self):
+        super().setUp()
+
+    def test_type_1(self):
+        text = '!ABVDM,1,1,,A,15NaEPPP01oR`R6CC?<j@gvr0<1C,0*1F'
+        time = 12345.0
+        sentence = parse(str(time) + ' ' + text)
+        expected_dict = {'accuracy': True,
+                         'course': 57.8,
+                         'heading': 511,
+                         'ignored-145': 0,
+                         'lat': 33.7302,
+                         'lon': -118.2634,
+                         'maneuver': 'enum-0',
+                         'mmsi': '367678850',
+                         'radio': 49235,
+                         'raim': False,
+                         'repeat': 0,
+                         'second': 29,
+                         'speed': 0.1,
+                         'status': 'enum-0',
+                         'text': [text],
+                         'time': time,
+                         'turn': -0.0021,
+                         'type': 1,}
+        self.assertDictEqual(expected_dict, sentence.as_dict())
+
+    def test_type_5(self):
+        m = parse(['!AIVDM,2,1,8,A,55Mw0BP00001L=WKC?98uT4j1=@580000000000t1@D5540Ht6?UDp4iSp=<,0*74',
+                   '!AIVDM,2,2,8,A,@0000000000,2*5C'])[0]
+        d = m.as_dict()
+        print(d)
