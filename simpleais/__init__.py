@@ -461,16 +461,14 @@ class BitFieldDecoder(FieldDecoder):
         elif data_type == 'd':
             return lambda p: p.bits[self.start:self.end + 1]
         elif data_type == 'e':
-            def lookup(p):
-                i = self.int(p)
-                if i not in ENUM_LOOKUPS[name]:
-                    ENUM_LOOKUPS[name][i] = AisEnum(i, "enum-unknown-{}".format(i))
-                return ENUM_LOOKUPS[name][i]
-
-            if name == 'shiptype':
+            if name in ['status', 'shiptype']:
+                def lookup(p):
+                    i = self.int(p)
+                    if i not in ENUM_LOOKUPS[name]:
+                        ENUM_LOOKUPS[name][i] = AisEnum(i, "enum-unknown-{}".format(i))
+                    return ENUM_LOOKUPS[name][i]
                 return lookup
-            else:
-                return lambda p: "enum-{}".format(self.int(p))  # TODO: find and include enumerated types
+            return lambda p: "enum-{}".format(self.int(p))  # TODO: find and include enumerated types
         elif data_type == 'b':
             return lambda p: self.int(p) == 1
         elif data_type == 'x':
@@ -597,6 +595,11 @@ class AisEnum:
     def __repr__(self):
         return 'AisEnum({}, {})'.format(self.key, self.value)
 
+    def __eq__(self, other):
+        """Override the default Equals behavior"""
+        if isinstance(other, self.__class__):
+            return self.key == other.key and self.value == other.value
+        return False
 
 def as_enum(key, value):
     return AisEnum(key, value)
@@ -619,7 +622,8 @@ def _load_decoders(source_file):
     # add derived fields
     message_result[4].add_field_decoder('time', TimeFieldDecoder())
 
-    enum_result = {'shiptype': as_enums(loaded_json['lookups']['ship_type'])}
+    enum_result = {'shiptype': as_enums(loaded_json['lookups']['ship_type']),
+                   'status': as_enums(loaded_json['lookups']['navigation_status'])}
     return message_result, enum_result
 
 
@@ -787,7 +791,7 @@ class Sentence:
     def as_dict(self):
         result = {}
         if self.time:
-            result['time'] = self.time
+            result['received_at'] = self.time
         result['text'] = self.text
         for field in self.fields():
             result[field.name()] = field.value()

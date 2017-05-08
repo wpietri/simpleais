@@ -651,11 +651,12 @@ def value_for(field, sentence):
             return strftime("%H", localtime(sentence.time))
         elif field == 'time-minute':
             return strftime("%M", localtime(sentence.time))
-    elif field == 'geo-degree':
+    elif field in ('geo-degree', 'geo-tenth', 'geo-hundredth'):
         lon = sentence['lon']
         lat = sentence['lat']
+        precision = {'geo-degree': 0, 'geo-tenth': 1, 'geo-hundredth': 2}[field]
         if lon and lat:
-            return "{:+3.0f}x{:+2.0f}".format(lon, lat)
+            return "{:+3.{prec}f}x{:+2.{prec}f}".format(lon, lat, prec=precision)
     else:
         return sentence[field]
 
@@ -682,6 +683,8 @@ def tuple_display(t):
 @click.option('--hour', 'fields', flag_value='time-hour', multiple=True)
 @click.option('--minute', 'fields', flag_value='time-minute', multiple=True)
 @click.option('--degree', 'fields', flag_value='geo-degree', multiple=True)
+@click.option('--tenth', 'fields', flag_value='geo-tenth', multiple=True)
+@click.option('--hundredth', 'fields', flag_value='geo-hundredth', multiple=True)
 @click.option('--count', '-c', 'output', flag_value='count', default=True)
 @click.option('--hist', '-h', 'output', flag_value='hist')
 @click.option('--verbose', is_flag=True)

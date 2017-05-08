@@ -97,26 +97,6 @@ class TestFieldLookup(TestCase):
         self.assertTrue(m['type'])
         self.assertFalse(m['unknown'])
 
-    # this test is a sign of a terrible design problem. TODO: maybe make enum collections responsible for defaulting?
-    def test_enum_field(self):
-        class FakePayload:
-            def __init__(self, val):
-                self.val = val
-
-            def int_for_bit_range(self, i1, i2):
-                return self.val
-
-        enum_decoder = MESSAGE_DECODERS[5].field('shiptype')._appropriate_nmea_decoder('e', 'shiptype')
-        l = ENUM_LOOKUPS['shiptype']
-        decoded_30 = enum_decoder(FakePayload(30))
-        self.assertEqual(30, decoded_30.key)
-        self.assertEqual("Fishing", decoded_30.value)
-        self.assertEqual("Fishing", str(decoded_30))
-        decoded_101 = enum_decoder(FakePayload(101))
-        self.assertEqual(101, decoded_101.key)
-        self.assertEqual("enum-unknown-101", decoded_101.value)
-        self.assertEqual("enum-unknown-101", str(decoded_101))
-
     def test_type_17_location(self):
         # Type 17 locations are weird. I don't have enough data to reliably check,
         # and it's not clear that it means the same thing as other lon/lat fields.
@@ -159,6 +139,46 @@ class TestFieldLookup(TestCase):
         self.assertIsNone(m['time'])
 
 
+# this test is a sign of a terrible design problem. TODO: maybe make enum collections responsible for defaulting?
+class TestEnumLookup(TestCase):
+    def test_shiptype(self):
+        enum_decoder = self.decoder_for_enum(5, 'shiptype')
+
+        decoded_30 = enum_decoder(self.fake_payload(30))
+        self.assertEqual(30, decoded_30.key)
+        self.assertEqual("Fishing", decoded_30.value)
+        self.assertEqual("Fishing", str(decoded_30))
+
+        decoded_101 = enum_decoder(self.fake_payload(101))
+        self.assertEqual(101, decoded_101.key)
+        self.assertEqual("enum-unknown-101", decoded_101.value)
+        self.assertEqual("enum-unknown-101", str(decoded_101))
+
+    def test_navigation_status(self):
+        enum_decoder = self.decoder_for_enum(1, 'status')
+        print(enum_decoder)
+        print(ENUM_LOOKUPS)
+        decoded_1 = enum_decoder(self.fake_payload(1))
+        print(decoded_1)
+        self.assertEqual(1, decoded_1.key)
+        self.assertEqual("At anchor", decoded_1.value)
+        self.assertEqual("At anchor", str(decoded_1))
+
+    def decoder_for_enum(self, packet_type, field_name):
+        return MESSAGE_DECODERS[packet_type].field(field_name)._appropriate_nmea_decoder('e', field_name)
+
+    def fake_payload(self, payload_value):
+        class FakePayload:
+            def __init__(self, val):
+                self.val = val
+
+            def int_for_bit_range(self, i1, i2):
+                return self.val
+
+        payload = FakePayload(payload_value)
+        return payload
+
+
 class TestNettlesomePackets(TestCase):
     def test_type_7(self):
         """
@@ -194,15 +214,52 @@ class TestRenderAsDict(TestCase):
                          'repeat': 0,
                          'second': 29,
                          'speed': 0.1,
-                         'status': 'enum-0',
+                         'status': AisEnum(0, 'Under way using engine'),
                          'text': [text],
-                         'time': time,
+                         'received_at': time,
                          'turn': -0.0021,
                          'type': 1,}
         self.assertDictEqual(expected_dict, sentence.as_dict())
 
+    def test_type_4_time(self):
+        text = "!AIVDM,1,1,,A,403Othiv0eW>jo@FfjEjH>?02<1u,0*72"
+        time = 12345.0
+        sentence = parse(str(time) + ' ' + text)
+        print(sentence.as_dict())
+
+        # received_at is the sentence's time field, the receiver timetamp
+        self.assertEqual(time, sentence.time)
+        self.assertEqual(time, sentence.as_dict()['received_at'])
+
+        # but type 4 packets contain their own notion of time
+        self.assertEqual(1456557290, sentence.as_dict()['time'])
+
     def test_type_5(self):
-        m = parse(['!AIVDM,2,1,8,A,55Mw0BP00001L=WKC?98uT4j1=@580000000000t1@D5540Ht6?UDp4iSp=<,0*74',
-                   '!AIVDM,2,2,8,A,@0000000000,2*5C'])[0]
-        d = m.as_dict()
-        print(d)
+        text = ['!AIVDM,2,1,8,A,55Mw0BP00001L=WKC?98uT4j1=@580000000000t1@D5540Ht6?UDp4iSp=<,0*74',
+                '!AIVDM,2,2,8,A,@0000000000,2*5C']
+        sentence = parse(text)[0]
+        expected = {
+            'type': 5,
+            'ais_version': 0,
+            'mmsi': '366985290',
+            'month': 0,
+            'day': 0,
+            'hour': 24,
+            'minute': 60,
+            'shiptype': AisEnum(60, 'Passenger, all ships of this type'),
+            'to_port': 5,
+            'to_starboard': 5,
+            'to_bow': 10,
+            'to_stern': 20,
+            'draught': 2.4,
+            'shipname': 'ROYAL STAR',
+            'callsign': 'WCY6432',
+            'destination': '>US SFO 41',
+            'text': text,
+            'imo': 0,
+            'repeat': 0,
+            'epfd': 'enum-1',
+            'ignored-423': 0,
+            'dte': False}
+
+        self.assertDictEqual(expected, sentence.as_dict())
