@@ -788,13 +788,23 @@ class Sentence:
     def __str__(self):
         return "Sentence(type {}, from {}, at {})".format(self.type_num, self['mmsi'], self.time)
 
+    def as_json(self):
+        d = self.as_dict()
+        for k in d:
+            if isinstance(d[k], AisEnum):
+                enum = d[k]
+                d[k] = {'enum_id': enum.key, 'enum_value': enum.value}
+            elif isinstance(d[k], Bits):
+                d[k] = str(d[k])
+        return json.dumps(d)
+
     def as_dict(self):
-        result = {}
+        result = collections.OrderedDict()
         if self.time:
             result['received_at'] = self.time
-        result['text'] = self.text
         for field in self.fields():
             result[field.name()] = field.value()
+        result['text'] = self.text
         return result
 
     def __iter__(self):

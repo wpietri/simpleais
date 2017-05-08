@@ -715,6 +715,15 @@ def stat(sources, fields, output, verbose):
             )
 
 
+@click.command()
+@click.argument('sources', nargs=-1)
+def to_json(sources):
+    """ Prints out all complete AIS transmissions.  """
+    for sentence in sentences_from_sources(sources):
+        with wild_disregard_for(BrokenPipeError):
+            print(sentence.as_json())
+
+
 # used for profiling; call with something like "grep ../tests/sample.ais -t 20"
 if __name__ == "__main__":
     print("running", sys.argv[1], "with", sys.argv[2:], file=sys.stderr)

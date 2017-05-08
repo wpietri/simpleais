@@ -156,10 +156,7 @@ class TestEnumLookup(TestCase):
 
     def test_navigation_status(self):
         enum_decoder = self.decoder_for_enum(1, 'status')
-        print(enum_decoder)
-        print(ENUM_LOOKUPS)
         decoded_1 = enum_decoder(self.fake_payload(1))
-        print(decoded_1)
         self.assertEqual(1, decoded_1.key)
         self.assertEqual("At anchor", decoded_1.value)
         self.assertEqual("At anchor", str(decoded_1))
@@ -225,7 +222,6 @@ class TestRenderAsDict(TestCase):
         text = "!AIVDM,1,1,,A,403Othiv0eW>jo@FfjEjH>?02<1u,0*72"
         time = 12345.0
         sentence = parse(str(time) + ' ' + text)
-        print(sentence.as_dict())
 
         # received_at is the sentence's time field, the receiver timetamp
         self.assertEqual(time, sentence.time)
