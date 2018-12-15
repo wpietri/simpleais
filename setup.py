@@ -10,7 +10,7 @@ setup(name='simpleais',
       packages=find_packages(),
       install_requires=['bitstring', 'testfixtures', 'Click', 'numpy', 'python-dateutil'],
       extras_require={
-          'dev': ['beautifulsoup4'],  # if you'll be developing, you may need this
+          'dev': ['beautifulsoup4', 'nose'],  # if you'll be developing, you may need this
       },
       package_data={'simpleais': ['aivdm.json']},
       entry_points={

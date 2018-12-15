@@ -3,8 +3,6 @@ import math
 import os
 import re
 import sys
-from collections import defaultdict
-from contextlib import contextmanager
 from copy import copy
 from math import radians, sin, atan2, sqrt, cos
 from time import localtime
@@ -12,6 +10,8 @@ from time import strftime
 
 import click
 import numpy
+from collections import defaultdict
+from contextlib import contextmanager
 from dateutil.parser import parse as dateutil_parse
 
 from simpleais import sentences_from_source
@@ -142,8 +142,8 @@ def parse_date(string):
 @click.option('--mmsi-file')
 @click.option('--type', '-t', 'sentence_type', type=int, multiple=True)
 @click.option('--class', 'vessel_class', type=click.Choice(['a', 'b']))
-@click.option('--longitude', '--long', '--lon', nargs=2, type=float)
-@click.option('--latitude', '--lat', nargs=2, type=float)
+@click.option('--longitude', '--long', '--lon', 'lon', nargs=2, type=float)
+@click.option('--latitude', '--lat', 'lat', nargs=2, type=float)
 @click.option('--field', '-f', multiple=True)
 @click.option('--value', type=(str, str), multiple=True)
 @click.option('--before')
@@ -676,6 +676,7 @@ def tuple_display(t):
         return "+".join([str(i) for i in t])
 
 
+# TODO: need tab-delimited output format for further parsing
 @click.command()
 @click.argument('sources', nargs=-1)
 @click.option('--field', '-f', 'fields', multiple=True)
