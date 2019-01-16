@@ -3,6 +3,8 @@ import math
 import os
 import re
 import sys
+from collections import defaultdict
+from contextlib import contextmanager
 from copy import copy
 from math import radians, sin, atan2, sqrt, cos
 from time import localtime
@@ -10,8 +12,6 @@ from time import strftime
 
 import click
 import numpy
-from collections import defaultdict
-from contextlib import contextmanager
 from dateutil.parser import parse as dateutil_parse
 
 from simpleais import sentences_from_source
@@ -151,10 +151,11 @@ def parse_date(string):
 @click.option('--checksum', type=click.Choice(['valid', 'invalid']))
 @click.option('--mode', type=click.Choice(['and', 'or']))
 @click.option('--invert-match', '-v', is_flag=True)
+@click.option('--max-count', '-m', 'max', type=int)
 @click.option('--verbose', is_flag=True)
 def grep(sources, mmsi=None, mmsi_file=None, sentence_type=None, vessel_class=None, lon=None, lat=None,
          value=None, before=None, after=None, field=None, checksum=None,
-         mode='and', invert_match=False, verbose=False):
+         mode='and', invert_match=False, max=None, verbose=False):
     """ Filters AIS transmissions.  """
     if not mmsi:
         mmsi = frozenset()
@@ -168,9 +169,13 @@ def grep(sources, mmsi=None, mmsi_file=None, sentence_type=None, vessel_class=No
     taster = Taster(mmsi, sentence_type, vessel_class, lon, lat, field, value, parse_date(before), parse_date(after),
                     mode, checksum_desire, invert_match)
     with wild_disregard_for(BrokenPipeError):
+        matches = 0
         for sentence in sentences_from_sources(sources, log_errors=verbose):
             if taster.likes(sentence):
                 print_sentence_source(sentence)
+                matches += 1
+                if max and matches >= max:
+                    break
 
 
 def read_mmsi_file(mmsi_file):

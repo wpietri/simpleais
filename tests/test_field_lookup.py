@@ -62,8 +62,8 @@ class TestFieldLookup(TestCase):
         d = MESSAGE_DECODERS[1]
         m = simpleais.parse('!ABVDM,1,1,,A,15NaEPPP01oR`R6CC?<j@gvr0<1C,0*1F')
         self.assertEqual('367678850', d.decode('mmsi', m))
-        self.assertAlmostEquals(33.7302, d.decode('lat', m))
-        self.assertAlmostEquals(-118.2634, d.decode('lon', m))
+        self.assertAlmostEqual(33.7302, d.decode('lat', m))
+        self.assertAlmostEqual(-118.2634, d.decode('lon', m))
 
     def test_fields_for_sentence(self):
         m = simpleais.parse('!ABVDM,1,1,,A,15NaEPPP01oR`R6CC?<j@gvr0<1C,0*1F')

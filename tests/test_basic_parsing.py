@@ -49,7 +49,7 @@ class TestBasicParsing(TestCase):
         self.assertEqual(1, len(sentences))
         message_bytes = sum([len(m) - len('!AIVDM,3,1,3,A,') - len(',2*34') for m in raw])
         message_bits = message_bytes * 6 - 2  # where 2 is padding on last fragment
-        self.assertEquals(message_bits, len(sentences[0].message_bits()))
+        self.assertEqual(message_bits, len(sentences[0].message_bits()))
 
     def test_round_trip_for_single_fragment(self):
         text = '!ABVDM,1,1,,A,15NaEPPP01oR`R6CC?<j@gvr0<1C,0*1F'

@@ -60,11 +60,11 @@ class TestSourceHandling(TestCase):
         with LogCapture() as logs:
             with tempfile.NamedTemporaryFile() as file:
                 self.write_sample_data(file)
-                io = open(file.name, 'rt')
-                sentences = sentences_from_source(io, log_errors=True)
-                self.assertEqual(8, sentences.__next__().type_id())
-                self.assertEqual(1, sentences.__next__().type_id())
-                self.assertRaises(StopIteration, sentences.__next__)
+                with open(file.name, 'rt') as io:
+                    sentences = sentences_from_source(io, log_errors=True)
+                    self.assertEqual(8, sentences.__next__().type_id())
+                    self.assertEqual(1, sentences.__next__().type_id())
+                    self.assertRaises(StopIteration, sentences.__next__)
             logs.check(('root', 'WARNING', 'skipped: "garbage data"'))
 
     # TODO: figure out how to test serial and url sources effectively

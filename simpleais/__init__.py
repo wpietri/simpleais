@@ -130,7 +130,7 @@ class StreamParser:
                 self.sentence_buffer.append(sentence)
         else:
             if self.log_errors:
-                logging.getLogger().warn("skipped: \"{}\"".format(message_text.strip()))
+                logging.getLogger().warning("skipped: \"{}\"".format(message_text.strip()))
 
     def next_sentence(self):
         return self.sentence_buffer.popleft()
@@ -881,7 +881,7 @@ def fragments_from_source(source, log_errors=False):
             if m:
                 yield m.group(0)
             elif log_errors:
-                logging.getLogger().warn("skipped: \"{}\"".format(line.strip()))
+                logging.getLogger().warning("skipped: \"{}\"".format(line.strip()))
         except Exception:
             logging.getLogger().error("unexpected failure for line {} in source {}".format(line, source), exc_info=True)
 
