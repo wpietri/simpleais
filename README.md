@@ -16,6 +16,9 @@ SimpleAIS also provides some handy command-line tools, including:
 * aisburst - takes a large file of sentences and splits it into one file per sender
 * aisinfo - give summary reports for a file of sentences with optional details on each sender
 * aisdump - detailed dumps of individual sentences, including bits
+* aisstat - does basic statistics on fields
+* aisrefine - a sort of lossy compression for AIS files
+* ais2json - turns AIS sentences into JSON structures 
 
 If you would like to try it out and don't have any AIS data handy, try
 tests/sample.ais.
@@ -28,7 +31,7 @@ Here's an example, a simplified version of the `aist` tool, which prints
 one line per complete AIS message:
 
 
-    for sentence in sentences_from_sources(sources):
+    for sentence in sentences_from_sources(sys.argv[1:):
         result = []
         if sentence.time:
             result.append(sentence.time.strftime(TIME_FORMAT))

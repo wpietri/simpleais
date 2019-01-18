@@ -1,11 +1,15 @@
 from setuptools import setup, find_packages
 
+with open('README.rst') as r:
+    readme = r.read()
+
 setup(name='simpleais',
-      version='0.6.7',
+      version='0.7.1',
       description='a simple ais parser',
+      long_description=readme,
       url='https://github.com/wpietri/simpleais',
       author='William Pietri',
-      author_email='william-simpleais-0_6@scissor.com',
+      author_email='william-simpleais-0_7@scissor.com',
       license='Apache 2.0',
       packages=find_packages(),
       install_requires=['bitstring', 'testfixtures', 'Click', 'numpy', 'python-dateutil'],
