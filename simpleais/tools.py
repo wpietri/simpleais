@@ -721,6 +721,94 @@ def stat(sources, fields, output, verbose):
             )
 
 
+class RefineFilter:
+    BORING_SECONDS = 4 * 3600
+    BORING_ANGLE = 45
+    BORING_SPEED_CHANGE = 2.0
+
+    def __init__(self):
+        self.last_seen_by_type = {}
+        self.recorded_speed = None
+        self.recorded_course = None
+        self.recorded_voyage = None
+
+    def wants(self, sentence):
+        time = sentence.time
+        if not time:
+            raise ValueError("time  needed for refinement in {}".format(sentence))
+        if sentence.type_id() not in self.last_seen_by_type or time - self.last_seen_by_type[
+            sentence.type_id()] > self.BORING_SECONDS:
+            return True
+        elif self.is_motion(sentence) and self.motion_interesting(sentence):
+            return True
+        elif self.is_voyage_info(sentence) and self.voyage_interesting(sentence):
+            return True
+        return False
+
+    def is_voyage_info(self, sentence):
+        return sentence.type_id() is 5
+
+    def is_motion(self, sentence):
+        return sentence.type_id() in [1, 2, 3, 18, 19]
+
+    def motion_interesting(self, sentence):
+        current_speed = sentence['speed']
+        if current_speed is not None and self.recorded_speed is not None:
+            speed_change = abs(current_speed - self.recorded_speed)
+            if speed_change > self.BORING_SPEED_CHANGE:
+                return True
+            if current_speed == 0.0 and current_speed != self.recorded_speed:
+                return True
+
+        if current_speed is None or current_speed < 5.0:
+            return False
+        current_course = sentence['course']
+        if current_course is None:
+            current_course = sentence['heading']
+        if current_course is not None and \
+                self.recorded_course is not None and \
+                self._angle_difference(current_course, self.recorded_course) > self.BORING_ANGLE:
+            return True
+        return False
+
+    def _angle_difference(self, a1, a2):
+        diff = abs(a1 - a2)
+        if diff <= 180:
+            return diff
+        else:
+            return abs(360 - diff)
+
+    def voyage_interesting(self, sentence):
+        return self.recorded_voyage != self.voyage_tuple(sentence)
+
+    def voyage_tuple(self, sentence):
+        return (sentence['callsign'], sentence['shipname'], sentence['shiptype'],
+                sentence['to_bow'], sentence['to_stern'], sentence['to_port'], sentence['to_starboard'],
+                sentence['draught'], sentence['destination'])
+
+    def mark(self, sentence):
+        self.last_seen_by_type[sentence.type_id()] = sentence.time
+        if self.is_motion(sentence):
+            self.recorded_speed = sentence['speed']
+            self.recorded_course = sentence['course']
+            if self.recorded_course is None:
+                self.recorded_course = sentence['heading']
+        elif self.is_voyage_info(sentence):
+            self.recorded_voyage = self.voyage_tuple(sentence)
+
+
+@click.command()
+@click.argument('sources', nargs=-1)
+def refine(sources):
+    filters = defaultdict(RefineFilter)
+    for sentence in sentences_from_sources(sources):
+        with wild_disregard_for(BrokenPipeError):
+            filter = filters[sentence['mmsi']]
+            if filter.wants(sentence):
+                print_sentence_source(sentence)
+                filter.mark(sentence)
+
+
 @click.command()
 @click.argument('sources', nargs=-1)
 def to_json(sources):

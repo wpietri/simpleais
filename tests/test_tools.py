@@ -376,3 +376,18 @@ class CommandLineSmokeTest(TestCase):
             return self.required_args[c] + [file]
         else:
             return [file]
+
+
+class TestRefineFilter(TestCase):
+
+    def test_angle_difference(self):
+        filter = RefineFilter()
+        self.assertEqual(0, filter._angle_difference(0, 0))
+        self.assertEqual(1, filter._angle_difference(0, 1))
+        self.assertEqual(1, filter._angle_difference(1, 0))
+        self.assertEqual(180, filter._angle_difference(180, 0))
+        self.assertEqual(180, filter._angle_difference(0, 180))
+        self.assertEqual(45, filter._angle_difference(0, 45))
+        self.assertEqual(45, filter._angle_difference(45, 0))
+        self.assertEqual(45, filter._angle_difference(359, 44))
+        self.assertEqual(45, filter._angle_difference(44, 359))
