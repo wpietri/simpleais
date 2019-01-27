@@ -1,4 +1,5 @@
 import functools
+import logging
 import math
 import os
 import re
@@ -51,8 +52,11 @@ def print_sentence_source(sentence, file=None):
 def sentences_from_sources(sources, log_errors=False):
     if len(sources) > 0:
         for source in sources:
-            for sentence in sentences_from_source(source, log_errors):
-                yield sentence
+            try:
+                for sentence in sentences_from_source(source, log_errors):
+                    yield sentence
+            except:
+                logging.exception("Unexpected failure with source {}; continuing".format(source))
     else:
         for sentence in sentences_from_source(sys.stdin, log_errors):
             yield sentence
