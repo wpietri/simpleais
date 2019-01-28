@@ -740,8 +740,8 @@ class RefineFilter:
         time = sentence.time
         if not time:
             raise ValueError("time  needed for refinement in {}".format(sentence))
-        if sentence.type_id() not in self.last_seen_by_type or time - self.last_seen_by_type[
-            sentence.type_id()] > self.BORING_SECONDS:
+        if sentence.type_id() not in self.last_seen_by_type or \
+                time - self.last_seen_by_type[sentence.type_id()] > self.BORING_SECONDS:
             return True
         elif self.is_motion(sentence) and self.motion_interesting(sentence):
             return True
