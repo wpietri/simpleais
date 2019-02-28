@@ -25,7 +25,15 @@ tests/sample.ais.
 
 Contributions welcome.
 
-## Library usage
+## Quickstart
+
+### Installation
+
+You can install the latest version of this library by running
+
+`pip install https://github.com/wpietri/simpleais/archive/master.zip`.
+
+### Library usage
 
 Here's an example, a simplified version of the `aist` tool, which prints
 one line per complete AIS message:
@@ -51,6 +59,35 @@ arrive. Each sentence has a wide variety of readable information. Documented
 fields can all be referred to by name. For example, `sentence['mmsi']` or
 `sentence['shipname']`. The `location()` method will return a tuple of the
 form `(longitude, latitude)`. Missing or invalid fields will return `None`.
+
+Here's another example of how to use the library:
+
+```
+import simpleais
+
+result = simpleais.parse("!AIVDM,1,1,,B,177KQJ5000G?tO`K>RA1wUbN0TKH,0*5C")
+
+print(result.as_json())
+
+"{'accuracy': False,
+ 'course': 51.0,
+ 'heading': 181,
+ 'ignored-145': 0,
+ 'lat': 47.5828,
+ 'lon': -122.3458,
+ 'maneuver': 'enum-0',
+ 'mmsi': '477553000',
+ 'radio': 149208,
+ 'raim': False,
+ 'repeat': 0,
+ 'second': 15,
+ 'speed': 0.0,
+ 'status': {'enum_id': 5, 'enum_value': 'Moored'},
+ 'text': ['!AIVDM,1,1,,B,177KQJ5000G?tO`K>RA1wUbN0TKH,0*5C'],
+ 'turn': 0.0,
+ 'type': 1}"
+
+```
 
 
 ## Command-line usage
