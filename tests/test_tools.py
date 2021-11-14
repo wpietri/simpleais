@@ -275,6 +275,15 @@ class TestTaster(TestCase):
                     "!WSVDM,2,2,0,A,05B0dl0HtS000000000000000000008,2*00"])[0]
     type_17 = parse(["!AIVDM,1,1,,A,Auju3sUbv8u`:JBCIf?vOeCSWmp:JOGeRN@?iD=I,0*61"])[0]
 
+    def test_mmsi_filtering(self):
+        taster = Taster(mmsi=('310327000'))
+        self.assertTrue(taster.likes(self.type_1_la))
+        self.assertFalse(taster.likes(self.type_1_sf))
+
+        taster = Taster(mmsi=('366985310'))
+        self.assertFalse(taster.likes(self.type_1_la))
+        self.assertTrue(taster.likes(self.type_1_sf))
+
     def test_location_filtering(self):
         taster = Taster(lat=(32, 35))  # LA
         self.assertTrue(taster.likes(self.type_1_la))

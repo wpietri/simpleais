@@ -142,7 +142,7 @@ def parse_date(string):
 
 @click.command()
 @click.argument('sources', nargs=-1)
-@click.option('--mmsi', '-m', multiple=True)
+@click.option('-m', '--mmsi', multiple=True)
 @click.option('--mmsi-file')
 @click.option('--type', '-t', 'sentence_type', type=int, multiple=True)
 @click.option('--class', 'vessel_class', type=click.Choice(['a', 'b']))
@@ -155,12 +155,13 @@ def parse_date(string):
 @click.option('--checksum', type=click.Choice(['valid', 'invalid']))
 @click.option('--mode', type=click.Choice(['and', 'or']))
 @click.option('--invert-match', '-v', is_flag=True)
-@click.option('--max-count', '-m', 'max', type=int)
+@click.option('--max-count', 'max', type=int)
 @click.option('--verbose', is_flag=True)
 def grep(sources, mmsi=None, mmsi_file=None, sentence_type=None, vessel_class=None, lon=None, lat=None,
          value=None, before=None, after=None, field=None, checksum=None,
          mode='and', invert_match=False, max=None, verbose=False):
     """ Filters AIS transmissions.  """
+    print(f'mmsi={mmsi}', file=sys.stderr)
     if not mmsi:
         mmsi = frozenset()
     if mmsi_file:
@@ -172,6 +173,7 @@ def grep(sources, mmsi=None, mmsi_file=None, sentence_type=None, vessel_class=No
         checksum_desire = checksum == "valid"
     taster = Taster(mmsi, sentence_type, vessel_class, lon, lat, field, value, parse_date(before), parse_date(after),
                     mode, checksum_desire, invert_match)
+    print(taster.mmsi, file=sys.stderr)
     with wild_disregard_for(BrokenPipeError):
         matches = 0
         for sentence in sentences_from_sources(sources, log_errors=verbose):
@@ -267,7 +269,7 @@ def burst(source, dest, verbose):
         if not mmsi:
             mmsi = 'other'
         if mmsi not in writers:
-            writers[mmsi] = open("{}-{}{}".format(fname, mmsi, ext), "wt")
+            writers[mmsi] = open("{}-{}{}".format(fname, mmsi, ext), "at")
         print_sentence_source(sentence, writers[mmsi])
 
     for writer in writers.values():
