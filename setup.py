@@ -4,7 +4,7 @@ with open('README.rst') as r:
     readme = r.read()
 
 setup(name='simpleais',
-      version='0.7.1',
+      version='0.7.2',
       description='a simple ais parser',
       long_description=readme,
       url='https://github.com/wpietri/simpleais',
@@ -12,7 +12,7 @@ setup(name='simpleais',
       author_email='william-simpleais-0_7@scissor.com',
       license='Apache 2.0',
       packages=find_packages(),
-      install_requires=['bitstring', 'testfixtures', 'Click', 'numpy', 'python-dateutil'],
+      install_requires=['bitstring', 'testfixtures', 'Click<8.1.3', 'numpy', 'python-dateutil'],
       extras_require={
           'dev': ['beautifulsoup4', 'nose'],  # if you'll be developing, you may need this
       },
