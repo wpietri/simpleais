@@ -169,7 +169,13 @@ def parse_one(string, default_to_current_time=False):
         if default_to_current_time:
             sentence_time = time.time()
         else:
-            sentence_time = None
+            timestamp = None
+            ctag = re.compile('(c:[0-9])\w+').search(string)
+            if ctag:
+                timestamp = int(ctag.group()[2:])
+
+            sentence_time = timestamp
+
 
     message = m.group(2)
 
