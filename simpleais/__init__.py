@@ -8,6 +8,7 @@ import re
 import time
 from functools import reduce
 from io import TextIOBase
+from smart_open import open as sopen
 
 aivdm_pattern = re.compile(r'([.0-9]+)?\s*(![A-Z]{5},\d,\d,.?,[AB12]?,[^,]+,[0-6]\*[0-9A-F]{2})')
 
@@ -886,6 +887,8 @@ def lines_from_source(source):
         yield from _handle_serial_source(source)
     elif re.match("https?://.*", source):
         yield from _handle_url_source(source)
+    elif re.match("s3://", source):
+        yield from _handle_blob_source(source)
     else:
         # assume it's a file
         yield from _handle_file_source(source)
@@ -958,4 +961,10 @@ def _handle_file_source(source):
         source_reader = open(source)
     with source_reader as f:
         for line in f:
+            yield line
+
+
+def _handle_blob_source(source):
+    with sopen(source) as obj:
+        for line in obj:
             yield line
