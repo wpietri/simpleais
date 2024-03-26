@@ -864,7 +864,7 @@ def lines_from_source(source):
     if isinstance(source, TextIOBase):
         for line in source:
             yield line
-    elif re.match("/dev/tty.*", source):
+    elif re.match("/dev/tty.*", source) or re.match("COM\\d+$", source):
         yield from _handle_serial_source(source)
     elif re.match("https?://.*", source):
         yield from _handle_url_source(source)
