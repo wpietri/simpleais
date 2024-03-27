@@ -2574,14 +2574,14 @@
                     "end": 61,
                     "description": "Longitude",
                     "member": "lon",
-                    "type": "I4"
+                    "type": "I1"
                 },
                 {
                     "start": 62,
                     "end": 78,
                     "description": "Latitude",
                     "member": "lat",
-                    "type": "I4"
+                    "type": "I1"
                 },
                 {
                     "start": 79,
