@@ -98,13 +98,11 @@ class TestFieldLookup(TestCase):
         self.assertFalse(m['unknown'])
 
     def test_type_17_location(self):
-        # Type 17 locations are weird. I don't have enough data to reliably check,
-        # and it's not clear that it means the same thing as other lon/lat fields.
-        # So we'll just ignore them.
+        # not sure where this example came from, so I'm not totally sure it's right, but it seems to work
         m = parse(['!AIVDM,2,1,2,B,AkklHKotBpj>Pv8OptkMaD`J4:iU74U5807A6AQaM`;,0*45',
                    '!AIVDM,2,2,2,B,wibCPG`kAfs:E0Dhp,0*73'])[0]
-        self.assertIsNone(m['lat'])
-        self.assertIsNone(m['lon'])
+        self.assertEqual(m['lat'], 42.86)
+        self.assertEqual(m['lon'], -6.3233)
 
     def test_type_5(self):
         m = parse(['!AIVDM,2,1,8,A,55Mw0BP00001L=WKC?98uT4j1=@580000000000t1@D5540Ht6?UDp4iSp=<,0*74',
@@ -138,6 +136,10 @@ class TestFieldLookup(TestCase):
         m = parse('1456614528.900 !AIVDM,1,1,,B,4r`r4cc2tMhKpNFJtl1>Egqo1<9l,0*2C')
         self.assertIsNone(m['time'])
 
+    def test_type_27_location(self):
+        m = parse('!AIVDM,1,1,,A,KCQ9r=hrFUnH7P00,0*41')
+        self.assertEqual(m['lon'], -154.2017)
+        self.assertEqual(m['lat'], 87.065)
 
 # this test is a sign of a terrible design problem. TODO: maybe make enum collections responsible for defaulting?
 class TestEnumLookup(TestCase):
