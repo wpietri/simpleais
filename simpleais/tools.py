@@ -668,6 +668,8 @@ def value_for(field, sentence):
         precision = {'geo-degree': 0, 'geo-tenth': 1, 'geo-hundredth': 2}[field]
         if lon and lat:
             return "{:+3.{prec}f}x{:+2.{prec}f}".format(lon, lat, prec=precision)
+    elif field == 'check':
+        return sentence.check()
     else:
         return sentence[field]
 
