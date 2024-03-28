@@ -442,10 +442,10 @@ class BitFieldDecoder(FieldDecoder):
             return self._parse_lon
         elif name == 'lat' and data_type == 'I4':
             return self._parse_lat
-        elif name == 'lon' and data_type == 'I1':
-            return lambda b: None  # Type 17 is weird; ignore for now
-        elif name == 'lat' and data_type == 'I1':
-            return lambda b: None  # Type 17 is weird; ignore for now
+        elif name.endswith('lon') and data_type == 'I1':
+            return self._parse_lon_coarse
+        elif name.endswith('lat') and data_type == 'I1':
+            return self._parse_lat_coarse
         elif data_type == 't' or data_type == 's':
             return self._parse_text
         elif data_type == 'I1':
@@ -506,6 +506,20 @@ class BitFieldDecoder(FieldDecoder):
         if not payload.has_bits(self.start, self.end + 1):
             return None
         result = payload.scaled_int_for_bit_range(self.start, self.end + 1, 4)
+        if result is not None and result != 91.0 and -90.0 <= result <= 90.0:
+            return result
+
+    def _parse_lon_coarse(self, payload):
+        if not payload.has_bits(self.start, self.end + 1):
+            return None
+        result = payload.scaled_int_for_bit_range(self.start, self.end + 1, 1)
+        if result is not None and result != 181.0 and -180.0 <= result <= 180.0:
+            return result
+
+    def _parse_lat_coarse(self, payload):
+        if not payload.has_bits(self.start, self.end + 1):
+            return None
+        result = payload.scaled_int_for_bit_range(self.start, self.end + 1, 1)
         if result is not None and result != 91.0 and -90.0 <= result <= 90.0:
             return result
 

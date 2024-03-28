@@ -135,8 +135,10 @@ message_types = Table(soup.find('h2', {'id': '_ais_payload_interpretation'}).fin
 
 messages = extract_message_types(soup, message_types)
 
-# fix error in source; text says (and data confirms) it's an enum
-messages["19"]["fields"][13]["type"] = "e"
+# fix errors in source
+messages["19"]["fields"][13]["type"] = "e"  # text says (and data confirms) it's an enum
+messages["27"]["fields"][6]["type"] = "I1"
+messages["27"]["fields"][7]["type"] = "I1"
 
 lookups = extract_lookups(soup)
 
