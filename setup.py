@@ -1,6 +1,8 @@
+from os.path import dirname, join
 from setuptools import setup, find_packages
 
-with open('README.rst') as r:
+
+with open(join(dirname(__file__), 'README.md')) as r:
     readme = r.read()
 
 setup(name='simpleais',
