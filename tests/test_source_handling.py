@@ -67,7 +67,7 @@ class TestSourceHandling(TestCase):
                     self.assertRaises(StopIteration, sentences.__next__)
             logs.check(('root', 'WARNING', 'skipped: "garbage data"'))
 
-    # TODO: figure out how to test serial and url sources effectively
+    # TODO: figure out how to test serial, url, and udp sources effectively
 
     def write_sample_data(self, file, compress=False):
         if compress:
