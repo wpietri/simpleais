@@ -884,7 +884,7 @@ def lines_from_source(source):
         yield from _handle_url_source(source)
     elif re.match("^:\\d{1,5}$", source):
         yield from _handle_udp_source(source)
-    elif re.match("^\\d{1,3}\\.\\d{1,3}\\.\\d{1,3}\\.\\d{1,3}:\\d{1,5}$", source):
+    elif re.match(".*:\\d{1,5}$", source):
         yield from _handle_tcp_client_source(source)
     else:
         # assume it's a file
