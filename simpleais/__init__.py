@@ -882,8 +882,10 @@ def lines_from_source(source):
         yield from _handle_serial_source(source)
     elif re.match("https?://.*", source):
         yield from _handle_url_source(source)
-    elif re.match("^\\d{1,3}\\.\\d{1,3}\\.\\d{1,3}\\.\\d{1,3}:\\d{1,5}$", source):
+    elif re.match("^:\\d{1,5}$", source):
         yield from _handle_udp_source(source)
+    elif re.match("^\\d{1,3}\\.\\d{1,3}\\.\\d{1,3}\\.\\d{1,3}:\\d{1,5}$", source):
+        pass
     else:
         # assume it's a file
         yield from _handle_file_source(source)
