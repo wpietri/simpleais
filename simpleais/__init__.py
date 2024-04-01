@@ -991,16 +991,26 @@ def _handle_tcp_client_source(source):
 
     ip, port = source.split(':')
     port = int(port)
+    line_buffer = ""
 
     while True:
         # noinspection PyBroadException
         try:
             with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
                 s.connect((ip, port))
+                s.setblocking(0)
                 # using select for timely detection of ctrl-c, even without AIS traffic
                 ready = select.select([s], [], [], 0.5)
                 if ready[0]:
-                    yield s.recv(4096).decode('ascii')
+                    line_buffer += s.recv(4096).decode('ascii')
+                    lines = line_buffer.splitlines(True)
+                    line_buffer = ""
+                    for l in lines:
+                        if l.find('\n') != -1:
+                            yield l
+                        else:
+                            line_buffer += l
         except Exception:
+            print("error")
             logging.getLogger().error("unexpected failure in source {}".format(source), exc_info=True)
             time.sleep(1)
