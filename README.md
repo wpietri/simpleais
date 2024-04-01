@@ -99,7 +99,7 @@ use aisgrep to get the relevant packets and aisinfo to plot the map:
 
 ## Sources
 
-My main source for protocol information is here: http://catb.org/gpsd/AIVDM.html
+My main source for protocol information is here: https://gpsd.gitlab.io/gpsd/AIVDM.html
 
 More protocol info is here: http://www.itu.int/dms_pubrec/itu-r/rec/m/R-REC-M.1371-5-201402-I!!PDF-E.pdf
 
