@@ -885,7 +885,7 @@ def lines_from_source(source):
     elif re.match("^:\\d{1,5}$", source):
         yield from _handle_udp_source(source)
     elif re.match("^\\d{1,3}\\.\\d{1,3}\\.\\d{1,3}\\.\\d{1,3}:\\d{1,5}$", source):
-        pass
+        yield from _handle_tcp_client_source(source)
     else:
         # assume it's a file
         yield from _handle_file_source(source)
@@ -976,6 +976,27 @@ def _handle_udp_source(source):
         try:
             with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as s:
                 s.bind((ip, port))
+                # using select for timely detection of ctrl-c, even without AIS traffic
+                ready = select.select([s], [], [], 0.5)
+                if ready[0]:
+                    yield s.recv(4096).decode('ascii')
+        except Exception:
+            logging.getLogger().error("unexpected failure in source {}".format(source), exc_info=True)
+            time.sleep(1)
+
+
+def _handle_tcp_client_source(source):
+    import socket
+    import select
+
+    ip, port = source.split(':')
+    port = int(port)
+
+    while True:
+        # noinspection PyBroadException
+        try:
+            with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
+                s.connect((ip, port))
                 # using select for timely detection of ctrl-c, even without AIS traffic
                 ready = select.select([s], [], [], 0.5)
                 if ready[0]:
