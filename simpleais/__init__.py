@@ -998,10 +998,7 @@ def _handle_tcp_client_source(source):
         try:
             with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
                 s.connect((ip, port))
-                s.setblocking(0)
-                # using select for timely detection of ctrl-c, even without AIS traffic
-                ready = select.select([s], [], [], 0.5)
-                if ready[0]:
+                while True:
                     line_buffer += s.recv(4096).decode('ascii')
                     lines = line_buffer.splitlines(True)
                     line_buffer = ""
