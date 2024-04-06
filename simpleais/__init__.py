@@ -11,6 +11,9 @@ from io import TextIOBase
 
 aivdm_pattern = re.compile(r'([.0-9]+)?\s*(![A-Z]{5},\d,\d,.?,[AB12]?,[^,]+,[0-6]\*[0-9A-F]{2})')
 
+# Timeout in seconds for serial, TCP, and UDP.
+# Allows users to stop a Python script with CTRL-C.
+source_timeout = 10
 
 class Bits:
     """
@@ -924,7 +927,7 @@ def _handle_serial_source(source):
     while True:
         # noinspection PyBroadException
         try:
-            with serial.Serial(source, 38400, timeout=10) as f:
+            with serial.Serial(source, 38400, timeout=source_timeout) as f:
                 while True:
                     raw_line = f.readline()
                     try:
@@ -976,16 +979,21 @@ def _handle_udp_source(source):
         # noinspection PyBroadException
         try:
             with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as s:
+                s.settimeout(source_timeout)
                 s.bind((ip, port))
                 while True:
-                    line_buffer += s.recv(4096).decode('ascii')
-                    lines = line_buffer.splitlines(True)
-                    line_buffer = ""
-                    for l in lines:
-                        if l.find('\n') != -1:
-                            yield l
-                        else:
-                            line_buffer += l
+                    try:
+                        line_buffer += s.recv(4096).decode('ascii')
+                        lines = line_buffer.splitlines(True)
+                        line_buffer = ""
+                        for l in lines:
+                            if l.find('\n') != -1:
+                                yield l
+                            else:
+                                line_buffer += l
+                    except socket.timeout:
+                        # timeout gives the user a chance to CTRL-C even without AIS traffic
+                        pass
         except Exception:
             logging.getLogger().error("unexpected failure in source {}".format(source), exc_info=True)
             time.sleep(1)
@@ -1003,16 +1011,21 @@ def _handle_tcp_client_source(source):
         # noinspection PyBroadException
         try:
             with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
+                s.settimeout(source_timeout)
                 s.connect((ip, port))
                 while True:
-                    line_buffer += s.recv(4096).decode('ascii')
-                    lines = line_buffer.splitlines(True)
-                    line_buffer = ""
-                    for l in lines:
-                        if l.find('\n') != -1:
-                            yield l
-                        else:
-                            line_buffer += l
+                    try:
+                        line_buffer += s.recv(4096).decode('ascii')
+                        lines = line_buffer.splitlines(True)
+                        line_buffer = ""
+                        for l in lines:
+                            if l.find('\n') != -1:
+                                yield l
+                            else:
+                                line_buffer += l
+                    except socket.timeout:
+                        # timeout gives the user a chance to CTRL-C even without AIS traffic
+                        pass
         except Exception:
             print("error")
             logging.getLogger().error("unexpected failure in source {}".format(source), exc_info=True)
