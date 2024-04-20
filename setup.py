@@ -4,7 +4,7 @@ with open('README.rst') as r:
     readme = r.read()
 
 setup(name='simpleais',
-      version='0.7.2',
+      version='0.7.3',
       description='a simple ais parser',
       long_description=readme,
       url='https://github.com/wpietri/simpleais',
