@@ -8,6 +8,7 @@ import re
 import time
 from functools import reduce
 from io import TextIOBase
+from smart_open import open as sopen
 
 aivdm_pattern = re.compile(r'([.0-9]+)?\s*(![A-Z]{5},\d,\d,.?,[AB12]?,[^,]+,[0-6]\*[0-9A-F]{2})')
 
@@ -169,7 +170,18 @@ def parse_one(string, default_to_current_time=False):
         if default_to_current_time:
             sentence_time = time.time()
         else:
-            sentence_time = None
+            timestamp = None
+            ctag = re.compile('(c:[0-9])\w+').search(string)
+            if ctag:
+                timestamp = int(ctag.group()[2:])
+
+            sentence_time = timestamp
+
+    # Add the sentence source
+    sentence_source = None
+    stag = re.compile('s:[0-9a-zA-Z]+').search(string)
+    if stag:
+        sentence_source = stag.group()[2:]
 
     message = m.group(2)
 
@@ -181,7 +193,8 @@ def parse_one(string, default_to_current_time=False):
     radio_channel = fields[4]
     payload = NmeaPayload(fields[5], int(fields[6]))
     if fragment_count == 1:
-        return Sentence(talker, sentence_type, radio_channel, payload, [checksum], sentence_time, [message])
+        return Sentence(talker, sentence_type, radio_channel, payload,
+                        [checksum], sentence_time, [message], sentence_source, string)
     else:
         fragment_number = int(fields[2])
         message_id = fields[3]
@@ -687,8 +700,11 @@ def _decoder_for_type(number):
 
 
 class SentenceFragment:
-    def __init__(self, talker, sentence_type, total_fragments, fragment_number, message_id, radio_channel, payload,
-                 checksum, received_time=None, text=None):
+    def __init__(self, talker, sentence_type, total_fragments, fragment_number,
+                 message_id, radio_channel, payload, checksum, received_time=None,
+                 text=None, source=None, string=None):
+        self.string = string
+        self.source = source
         self.talker = talker
         self.sentence_type = sentence_type
         self.total_fragments = total_fragments
@@ -745,7 +761,10 @@ class Field(object):
 
 
 class Sentence:
-    def __init__(self, talker, sentence_type, radio_channel, payload, checksums, received_time=None, text=None):
+    def __init__(self, talker, sentence_type, radio_channel, payload,
+                 checksums, received_time=None, text=None, source=None, string=None):
+        self.string = string
+        self.source = source
         self.talker = talker
         self.sentence_type = sentence_type
         self.radio_channel = radio_channel
@@ -797,7 +816,7 @@ class Sentence:
                         checksums, first.time, text)
 
     def __repr__(self):
-        return "Sentence({}, {})".format(self.time, self.text)
+        return "Sentence({}, <{}, {}>)".format(self.time, self.source, self.text)
 
     def __str__(self):
         return "Sentence(type {}, from {}, at {})".format(self.type_num, self['mmsi'], self.time)
@@ -882,6 +901,8 @@ def lines_from_source(source):
         yield from _handle_serial_source(source)
     elif re.match("https?://.*", source):
         yield from _handle_url_source(source)
+    elif re.match("s3://", source):
+        yield from _handle_blob_source(source)
     else:
         # assume it's a file
         yield from _handle_file_source(source)
@@ -954,4 +975,10 @@ def _handle_file_source(source):
         source_reader = open(source)
     with source_reader as f:
         for line in f:
+            yield line
+
+
+def _handle_blob_source(source):
+    with sopen(source) as obj:
+        for line in obj:
             yield line
