@@ -31,7 +31,10 @@ Here's an example, a simplified version of the `aist` tool, which prints
 one line per complete AIS message:
 
 
-    for sentence in sentences_from_sources(sys.argv[1:):
+    import sys
+    from simpleais import *
+
+    for sentence in sentences_from_source(sys.argv[1]):
         result = []
         if sentence.time:
             result.append(sentence.time.strftime(TIME_FORMAT))
@@ -45,7 +48,8 @@ one line per complete AIS message:
 
         print(" ".join(result))
 
-The `sentence_from_sources()` function will pull from a wide variety of sources
+
+The `sentence_from_source()` function will pull from a wide variety of sources
 (local files, serial ports, HTTP URLs), yielding only complete sentences as they
 arrive. Each sentence has a wide variety of readable information. Documented
 fields can all be referred to by name. For example, `sentence['mmsi']` or
@@ -95,7 +99,7 @@ use aisgrep to get the relevant packets and aisinfo to plot the map:
 
 ## Sources
 
-My main source for protocol information is here: http://catb.org/gpsd/AIVDM.html
+My main source for protocol information is here: https://gpsd.gitlab.io/gpsd/AIVDM.html
 
 More protocol info is here: http://www.itu.int/dms_pubrec/itu-r/rec/m/R-REC-M.1371-5-201402-I!!PDF-E.pdf
 
