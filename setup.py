@@ -1,6 +1,6 @@
 from setuptools import setup, find_packages
 
-with open('README.rst') as r:
+with open('README.md') as r:
     readme = r.read()
 
 setup(name='simpleais',
